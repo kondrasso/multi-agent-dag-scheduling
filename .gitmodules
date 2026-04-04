@@ -1,0 +1,3 @@
+[submodule "daggen"]
+	path = daggen
+	url = https://github.com/frs69wq/daggen

@@ -1,0 +1,10 @@
+[project]
+name = "phd-code"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "ray[rllib]>=2.54.1",
+    "rustworkx[all]>=0.17.1",
+]

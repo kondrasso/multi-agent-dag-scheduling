@@ -4,11 +4,11 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF'
-Usage: run_long_training_wsl.sh [options]
+Usage: run_long_training.sh [options]
 
-Long-running WSL launcher for chapter-4 MLVP training/evaluation.
-It wraps run_chapter4_pipeline.sh with heavier defaults, timestamped output
-directories, and a persistent log file.
+Long-running launcher for MLVP training/evaluation.
+It wraps the MLVP pipeline with heavier defaults, timestamped output directories,
+and a persistent log file.
 
 Options:
   --workspace csv              Workspace ids. Default: 1,2,3,4
@@ -39,15 +39,15 @@ Options:
   --help                       Show this message
 
 Examples:
-  ./cpp/mlvp/scripts/run_long_training_wsl.sh
-  ./cpp/mlvp/scripts/run_long_training_wsl.sh --workspace 2,3,4 --jobs 24
-  ./cpp/mlvp/scripts/run_long_training_wsl.sh --full-train --population 32 --generations 30
+  ./cpp/mlvp/scripts/run_long_training.sh
+  ./cpp/mlvp/scripts/run_long_training.sh --workspace 2,3,4 --jobs 24
+  ./cpp/mlvp/scripts/run_long_training.sh --full-train --population 32 --generations 30
 EOF
 }
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 REPO_ROOT=$(cd "${SCRIPT_DIR}/../../.." && pwd)
-PIPELINE_SCRIPT="${SCRIPT_DIR}/run_chapter4_pipeline.sh"
+PIPELINE_SCRIPT="${SCRIPT_DIR}/run_mlvp_pipeline.sh"
 
 ROOT_DIR="${REPO_ROOT}/cpp/mlvp/runs"
 RUN_NAME=""

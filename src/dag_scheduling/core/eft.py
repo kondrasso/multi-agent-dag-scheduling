@@ -1,6 +1,6 @@
 """
 EFT (Earliest Finish Time) placement rule — exactly as Definitions 2 & 3
-in the thesis problem statement.
+in the scheduling problem statement.
 
 EST(v_j, p_i) = max(T_ava(p_i),  max over pred(v_m) of [AFT(v_m) + delta(v_m, v_j, p_i)])
 

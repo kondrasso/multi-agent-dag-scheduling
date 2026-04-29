@@ -391,9 +391,6 @@ std::string GenerateDaggenDot(const DaggenParams& params) {
           << " --maxalpha " << params.maxalpha
           << " --mindata " << params.mindata
           << " --maxdata " << params.maxdata;
-  if (params.use_seed) {
-    command << " --seed " << params.seed;
-  }
   command << " >/dev/null 2>&1";
 
   const int status = std::system(command.str().c_str());

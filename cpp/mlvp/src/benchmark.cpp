@@ -152,8 +152,6 @@ int main(int argc, char** argv) {
       corpus.push_back(mlvp::ParseDotFile(path));
     }
     for (std::size_t i = 0; i < options.generate_count; ++i) {
-      options.daggen.use_seed = true;
-      options.daggen.seed = options.seed + static_cast<std::uint32_t>(i);
       corpus.push_back(mlvp::GenerateDaggenDag(options.daggen));
     }
 

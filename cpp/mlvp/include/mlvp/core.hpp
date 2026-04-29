@@ -85,8 +85,6 @@ struct DaggenParams {
   double maxalpha = 0.2;
   int mindata = 2048;
   int maxdata = 11264;
-  bool use_seed = false;
-  std::uint32_t seed = 0;
 };
 
 struct TopologyClass {

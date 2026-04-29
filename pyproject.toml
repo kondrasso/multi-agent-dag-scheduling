@@ -1,8 +1,9 @@
 [project]
-name = "phd-code"
+name = "multi-agent-dag-scheduling"
 version = "0.1.0"
 description = "Heterogeneous DAG scheduling experiments, baselines, MILP references, and MLVP simulator"
 readme = "README.md"
+license = { file = "LICENSE" }
 requires-python = ">=3.12"
 dependencies = [
     "highspy>=1.14.0",
@@ -19,6 +20,16 @@ gurobi = [
 
 [tool.uv]
 package = true
+
+[tool.hatch.build]
+include = [
+    "/LICENSE",
+    "/README.md",
+    "/main.py",
+    "/pyproject.toml",
+    "/src/dag_scheduling/**/*.py",
+    "/tests/**/*.py",
+]
 
 [build-system]
 requires = ["hatchling"]

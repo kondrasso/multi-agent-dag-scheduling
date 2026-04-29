@@ -42,7 +42,6 @@ def generate_dot(
     maxalpha: float = 0.2,
     mindata: int = 2048,
     maxdata: int = 11264,
-    seed: int | None = None,
 ) -> str:
     """Run daggen and return the raw .dot string."""
     binary = _find_binary()
@@ -60,8 +59,6 @@ def generate_dot(
         "--mindata", str(mindata),
         "--maxdata", str(maxdata),
     ]
-    if seed is not None:
-        cmd.extend(["--seed", str(seed)])
     result = subprocess.run(cmd, capture_output=True, text=True, check=True)
     return result.stdout
 
@@ -77,13 +74,12 @@ def generate(
     maxalpha: float = 0.2,
     mindata: int = 2048,
     maxdata: int = 11264,
-    seed: int | None = None,
 ) -> SchedulingDAG:
     """Generate a DAG and return a parsed SchedulingDAG."""
     dot = generate_dot(
         n=n, fat=fat, regular=regular, density=density,
         jump=jump, ccr=ccr, minalpha=minalpha, maxalpha=maxalpha,
-        mindata=mindata, maxdata=maxdata, seed=seed,
+        mindata=mindata, maxdata=maxdata,
     )
     return parse_dot_str(dot)
 

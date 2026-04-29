@@ -1,4 +1,4 @@
-"""Shared thesis experiment protocol helpers.
+"""Shared experiment protocol helpers.
 
 This module owns the topology grids, seed offsets, and corpus construction used
 by the Python training and evaluation scripts. Keeping the protocol here avoids
@@ -113,7 +113,6 @@ def generate_topology_corpus(
                 density=topology.density,
                 jump=topology.jump,
                 ccr=topology.daggen_ccr,
-                seed=seed,
             )
             assign_node_types(dag, strategy=type_strategy, seed=seed)
             corpus.append((dag, platform))
@@ -194,7 +193,6 @@ def make_large_random_corpus(
             density=topology.density,
             jump=topology.jump,
             ccr=topology.daggen_ccr,
-            seed=seed,
         )
         assign_node_types(dag, strategy=type_strategy, seed=seed)
         corpus.append((dag, platform))

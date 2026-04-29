@@ -1,5 +1,5 @@
 """
-MCTS-guided task selection — chapter 2, Algorithm 1.
+MCTS-guided task selection.
 
 MCTSSelect(state, candidates, scorer, I, h):
   Runs I iterations of Selection → Expansion → Simulation → Backprop.

@@ -1,5 +1,5 @@
 """
-Neural hyper-heuristic (chapter 3).
+Neural hyper-heuristic.
 
 Architecture: 8 → 6 → 4 → 2 → 1  (ReLU hidden, Sigmoid output)
 Total trainable parameters: 95  (matches chromosome length in GA config)

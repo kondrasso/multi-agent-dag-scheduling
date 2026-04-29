@@ -1,7 +1,7 @@
 """
 RLlib MultiAgentEnv for offline (full-visibility) MARL DAG scheduling.
 
-Exactly as specified in chapter 1, Section 3 (MARL_env) of the thesis:
+Offline MARL environment:
 
 Agents:       one per executor type — "cpu", "gpu", "io"
 Observation:  top-K=8 ready tasks × 13 metrics = 104-dim float vector
@@ -32,7 +32,7 @@ from dag_scheduling.core.metrics import (
     PRIORITY_RULES, NO_OP_ACTION, N_METRICS,
 )
 
-K = 8                               # observation cap (thesis §MARL_env)
+K = 8                               # observation cap
 OBS_DIM = K * N_METRICS             # 104
 AGENT_IDS = ["cpu", "gpu", "io"]
 TYPE_OF = {"cpu": "CPU", "gpu": "GPU", "io": "IO"}
@@ -41,7 +41,7 @@ AGENT_OF = {"CPU": "cpu", "GPU": "gpu", "IO": "io"}
 
 class OfflineSchedulingEnv(MultiAgentEnv):
     """
-    Offline DAG scheduling environment — matches Algorithm 1 of the thesis.
+    Offline DAG scheduling environment used by the MARL trainer.
 
     Call reset(options={"dag": dag, "platform": platform}) to load a new
     instance, or supply defaults via env_config.

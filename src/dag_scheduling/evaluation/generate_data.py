@@ -9,7 +9,7 @@ Small-scale corpus layout (saved under --data_dir):
   train_mcts_ws{ws}_n{n}.pkl  144 DAGs (48 classes × 3)   ws=1-3, n=30/60/90
   test_ws{ws}_n{n}.pkl        480 DAGs (48 classes × 10)  ws=1-3, n=30/60/90
 
-Large-scale corpus layout (chapter 3 NN, --large flag):
+Large-scale corpus layout (NN, --large flag):
   train_nn_large_ws{ws}.pkl   3000 DAGs   ws=4-9
   test_large_ws{ws}.pkl       10000 DAGs  ws=4-9
 
@@ -57,7 +57,7 @@ _TEST_COUNT = len(FULL_TOPOLOGIES) * TEST_PER_CLASS
 
 def _large_corpus(ws: int, count: int, seed_offset: int):
     """
-    Random sampling from the thesis parameter ranges — 3000/10000 instances
+    Random sampling from the large-scale parameter ranges: 3000/10000 instances
     are not divisible by 48 topology classes, so large-scale uses random draw.
     """
     return make_large_random_corpus(ws=ws, count=count, seed_offset=seed_offset)

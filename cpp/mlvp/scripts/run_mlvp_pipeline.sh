@@ -4,7 +4,7 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF'
-Usage: run_chapter4_pipeline.sh --corpus-root DIR --report-root DIR [options]
+Usage: run_mlvp_pipeline.sh --corpus-root DIR --report-root DIR [options]
 
 Options:
   --workspace csv              Workspace ids to process. Default: 1,2,3,4

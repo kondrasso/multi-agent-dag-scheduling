@@ -1,5 +1,5 @@
 """
-The 13 graph scheduling metrics from Table 1 (chapter 1) of the thesis.
+The 13 graph scheduling metrics used by the protocol.
 
 Index  Name           Formula / description
 -----  -------------  ---------------------------------------------------
@@ -21,7 +21,7 @@ rank uses:
   w_bar(vi) = avg processing time of vi over compatible executors in the platform
   b_bar(e)  = data_volume(e) / BANDWIDTH  (fixed bandwidth → no averaging needed)
 
-WOD_2 alpha (two-hop weight) is not fixed in the thesis; WOD2_ALPHA = 0.5 is used.
+WOD_2 alpha (two-hop weight) defaults to WOD2_ALPHA = 0.5.
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ from dag_scheduling.core.dag import SchedulingDAG
 from dag_scheduling.core.platform import Platform, BANDWIDTH
 
 N_METRICS = 13
-WOD2_ALPHA = 0.5  # two-hop contribution weight (not specified in thesis)
+WOD2_ALPHA = 0.5  # two-hop contribution weight
 
 METRIC_NAMES = [
     "WOD", "WOD_2", "rank", "C",
@@ -41,7 +41,7 @@ METRIC_NAMES = [
     "SPD", "LPD",
 ]
 
-# Priority-rule actions from chapter 1 (9 metric-based + 1 no-op = 10 total)
+# Priority-rule actions: 9 metric-based + 1 no-op = 10 total.
 # Each entry is (metric_index, higher_is_better)
 PRIORITY_RULES: list[tuple[int, bool]] = [
     (0,  True),   # 0: maximize WOD
@@ -94,7 +94,7 @@ def compute_metrics(dag: SchedulingDAG, platform: Platform) -> np.ndarray:
                 lpd[idx] = 1 + max(lpd.get(s, 0) for s in succs)
 
     # ------------------------------------------------------------------
-    # Upward rank (HEFT-style, Definition in chapter 1):
+    # Upward rank (HEFT-style):
     #   rank(vi) = w_bar(vi) + max_{vj in succ(vi)} [b_bar(i,j) + rank(vj)]
     # Computed in reverse topological order.
     # ------------------------------------------------------------------

@@ -1,7 +1,7 @@
 """
 Train NN and MCTS hyper-heuristics for all (ws, n) combinations.
 
-Thesis protocol:
+Full protocol:
   NN:   n ∈ {30, 60, 90},  ws ∈ {1, 2, 3},  1000 GA generations, pop=150
   MCTS: n ∈ {30, 60, 90},  ws ∈ {1, 2, 3},   150 GA generations, pop=150
 

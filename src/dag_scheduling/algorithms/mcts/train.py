@@ -1,7 +1,7 @@
 """
-MCTS training — chapter 2.
+MCTS training.
 
-Same neural network and GA as NN (chapter 3), but:
+Same neural network and GA family as NN, but:
   - GA: 150 generations (not 1000)
   - Training corpus: fat={0.2, 0.5} → 48 topology classes × 3 = 144 DAGs per n
   - Fitness evaluated by running full MCTS schedule (not plain NN schedule)

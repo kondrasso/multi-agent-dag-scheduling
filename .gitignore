@@ -4,6 +4,11 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
+.smoke/
+.uv-cache/
+build/
+dist/
+*.egg-info/
 
 .DS_Store
 .codex
@@ -15,5 +20,10 @@ results/
 cpp/mlvp/build/
 cpp/mlvp/runs/
 
-# Local thesis source drop; keep it available for reference but never commit it here.
-phd_thesis_spbu_format_en*/
+# Local patch drops.
+patches/
+
+# Local manuscript/reference drops; keep them available but never commit them here.
+manuscript*/
+reference*/
+private*/

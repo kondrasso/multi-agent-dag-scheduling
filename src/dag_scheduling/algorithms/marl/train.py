@@ -1,7 +1,7 @@
 """
-MARL training script — chapter 1 of the thesis.
+MARL training script.
 
-Hyperparameters (Table / Section MARL_train in chapter 1):
+Protocol hyperparameters:
   Network:    FC 128→64→32 per agent
   Algorithm:  PPO (independent, no parameter sharing)
   gamma:      1.0  (finite-horizon, sparse terminal reward)
@@ -56,7 +56,7 @@ class CorpusEnv(OfflineSchedulingEnv):
 def build_config(ws: int, n: int, iters: int, num_gpus: int = 0) -> PPOConfig:
     train_corpus = make_corpus(n, ws, N_TRAIN_PER_CLASS, seed_offset=0)
 
-    # FC network: 3 hidden layers [128, 64, 32] per agent (chapter 1)
+    # FC network: 3 hidden layers [128, 64, 32] per agent.
     model_cfg = {
         "fcnet_hiddens": [128, 64, 32],
         "fcnet_activation": "relu",
@@ -78,7 +78,7 @@ def build_config(ws: int, n: int, iters: int, num_gpus: int = 0) -> PPOConfig:
         .training(
             gamma=1.0,          # finite-horizon, sparse terminal reward
             lr=2e-5,
-            # 4 trajectories per iteration (thesis §MARL_train)
+            # 4 trajectories per iteration.
             train_batch_size_per_learner=4,
             minibatch_size=4,
         )

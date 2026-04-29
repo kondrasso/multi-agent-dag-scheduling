@@ -1,7 +1,7 @@
 """
-NN hyper-heuristic training — chapter 3.
+NN hyper-heuristic training.
 
-GA configuration (chapter 3, §Training):
+GA configuration:
   population:  150
   generations: 1000
   mutation:    p=0.8, Gaussian sigma=0.1

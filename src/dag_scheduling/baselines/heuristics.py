@@ -1,5 +1,5 @@
 """
-Offline DAG scheduling baselines — chapter 1, Section "Baseline DAG Scheduling Heuristics".
+Offline DAG scheduling baselines.
 
 All five heuristics follow the same schedule-construction loop:
   1. prioritise ready tasks using a method-specific rule
@@ -91,7 +91,7 @@ def _schedule_greedy(dag: SchedulingDAG, platform: Platform,
 
 def donf(dag: SchedulingDAG, platform: Platform) -> float:
     """
-    DONF — eq. (donf_wod) in thesis.
+    DONF weighted-out-degree rule.
     WOD(vi) = sum_{vj in succ(vi)} 1/in_degree(vj)
     """
     priority = {}
@@ -171,7 +171,7 @@ def cpop(dag: SchedulingDAG, platform: Platform) -> float:
 
 # ------------------------------------------------------------------
 # HCPT  (Heterogeneous Critical Parent Trees)
-# The thesis gives a high-level description referencing [a0].
+# The protocol gives a high-level description referencing [a0].
 # Priority approximated by upward rank (most critical = highest rank_u),
 # with EFT placement — faithful to the "criticality" intent described.
 # ------------------------------------------------------------------

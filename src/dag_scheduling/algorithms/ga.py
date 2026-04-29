@@ -1,7 +1,7 @@
 """
 Generic real-valued Genetic Algorithm used by NN, MCTS, and MLVP.
 
-Variation operators (chapter 2/3 of the thesis):
+Variation operators:
   - Two-Point Crossover (TPC)
   - Simulated Binary Crossover (SBX)
   Crossover operator is selected at random per mating event.
@@ -84,7 +84,7 @@ def run_ga(
     rng = np.random.default_rng(seed)
     t0 = time.monotonic()
 
-    # initialise population in U[-1, 1] (chapter 2/3 spec)
+    # initialise population in U[-1, 1]
     population = rng.uniform(-1.0, 1.0, size=(pop_size, chromosome_len))
     fitnesses = np.array([fitness_fn(ind) for ind in population])
 

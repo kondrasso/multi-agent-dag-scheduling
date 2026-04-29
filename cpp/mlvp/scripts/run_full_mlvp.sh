@@ -4,9 +4,9 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF'
-Usage: run_full_thesis_wsl.sh [options]
+Usage: run_full_mlvp.sh [options]
 
-Thesis-scale WSL launcher for the chapter-4 MLVP experiment.
+Full-scale launcher for the MLVP experiment.
 Defaults:
   - workspaces: 1,2,3,4
   - DAG sizes: 3000,6000,12000,24000
@@ -16,18 +16,18 @@ Defaults:
   - eval policies: mlvp,donf,fifo,minmin,maxmin
   - tuning objective: best-baseline-ratio against donf,fifo,minmin,maxmin
 
-Any option accepted by run_long_training_wsl.sh may be passed through here.
+Any option accepted by run_long_training.sh may be passed through here.
 Later arguments override these defaults.
 
 Examples:
-  ./cpp/mlvp/scripts/run_full_thesis_wsl.sh
-  ./cpp/mlvp/scripts/run_full_thesis_wsl.sh --jobs 24 --population 48 --generations 60
-  ./cpp/mlvp/scripts/run_full_thesis_wsl.sh --root /data/mlvp_runs --run-name thesis_full
+  ./cpp/mlvp/scripts/run_full_mlvp.sh
+  ./cpp/mlvp/scripts/run_full_mlvp.sh --jobs 24 --population 48 --generations 60
+  ./cpp/mlvp/scripts/run_full_mlvp.sh --root /data/mlvp_runs --run-name mlvp_full
 EOF
 }
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-LONG_RUN_SCRIPT="${SCRIPT_DIR}/run_long_training_wsl.sh"
+LONG_RUN_SCRIPT="${SCRIPT_DIR}/run_long_training.sh"
 
 if [[ ! -x "${LONG_RUN_SCRIPT}" ]]; then
   chmod +x "${LONG_RUN_SCRIPT}"
@@ -38,7 +38,7 @@ if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
   exit 0
 fi
 
-DEFAULT_RUN_NAME="full_thesis_$(date +"%Y%m%d_%H%M%S")"
+DEFAULT_RUN_NAME="full_mlvp_$(date +"%Y%m%d_%H%M%S")"
 
 exec "${LONG_RUN_SCRIPT}" \
   --run-name "${DEFAULT_RUN_NAME}" \

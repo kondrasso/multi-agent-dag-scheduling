@@ -1,21 +1,21 @@
 """
-Executor and Platform model — exactly as defined in the thesis.
+Executor and Platform model.
 
 Processing time:  w_{j,i} = workload(v_j) / GFLOPS(p_i)
 Communication:    b_{u,v}  = data_volume(e) / BANDWIDTH_BYTES_PER_SEC
 
-Executor types map to thesis "type 1/2/3":
+Executor types map to protocol "type 1/2/3":
   CPU  ↔  type 1
   GPU  ↔  type 2
   IO   ↔  type 3
 
-Workspace configs from Tables marl_executors_0/1/2 in chapter 1.
+Workspace configs used by the offline experiments.
 """
 
 from __future__ import annotations
 from dataclasses import dataclass
 
-# Fixed link bandwidth used throughout the thesis (chapter 1, comm model).
+# Fixed link bandwidth used throughout the communication model.
 BANDWIDTH = 1085e6  # bytes/s
 
 
@@ -57,14 +57,14 @@ class Platform:
 
 
 # ------------------------------------------------------------------
-# Workspace presets (chapter 1, Tables 1–3; chapter 3, Table executors_1_nn)
+# Workspace presets for small and large protocol grids.
 #
 # Small-scale (WS1-3): heterogeneous executors, one new triple added per WS
 #   WS1: CPU@26, GPU@134, IO@34
 #   WS2: WS1 + CPU@50, GPU@70, IO@20
 #   WS3: WS2 + CPU@125, GPU@40, IO@60
 #
-# Large-scale (WS4-9, chapter 3): p executors per type, same GFLOPS pool as WS1.
+# Large-scale (WS4-9): p executors per type, same GFLOPS pool as WS1.
 #   WS4:  1 per type  (3 total),  paired DAG size n=36
 #   WS5:  2 per type  (6 total),  n=114
 #   WS6:  4 per type  (12 total), n=576
@@ -106,8 +106,8 @@ def make_workspace(ws: int) -> Platform:
     """
     Build a Platform for workspace ws (1–9).
 
-    WS1-3: small-scale heterogeneous (chapter 1).
-    WS4-9: large-scale homogeneous-per-type (chapter 3 NN large-scale).
+    WS1-3: small-scale heterogeneous.
+    WS4-9: large-scale homogeneous-per-type.
     """
     if ws in (1, 2, 3):
         specs = _SMALL_SPECS[:ws * 3]

@@ -181,7 +181,6 @@ std::vector<mlvp::Dag> GenerateWorkspaceCorpus(const Options& options, int works
   params.binary = options.daggen_binary;
   params.n = mlvp::MlvpDagSizeForWorkspace(workspace);
 
-  std::uint32_t seed_offset = 0;
   for (const mlvp::TopologyClass& topology : mlvp::MlvpTopologyClasses()) {
     params.fat = topology.fat;
     params.density = topology.density;
@@ -189,9 +188,6 @@ std::vector<mlvp::Dag> GenerateWorkspaceCorpus(const Options& options, int works
     params.jump = topology.jump;
     params.ccr = topology.ccr;
     for (std::size_t i = 0; i < options.generate_per_class; ++i) {
-      params.use_seed = true;
-      params.seed = options.seed + static_cast<std::uint32_t>(
-                                       workspace * 100000 + seed_offset++);
       corpus.push_back(mlvp::GenerateDaggenDag(params));
     }
   }

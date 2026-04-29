@@ -115,7 +115,7 @@ int main(int argc, char** argv) {
       params.binary = options.daggen_binary;
       params.n = mlvp::MlvpDagSizeForWorkspace(workspace_id);
 
-      std::size_t global_seed_offset = 0;
+      std::size_t global_instance_offset = 0;
       for (const mlvp::TopologyClass& topology : topologies) {
         params.fat = topology.fat;
         params.density = topology.density;
@@ -124,15 +124,15 @@ int main(int argc, char** argv) {
         params.ccr = topology.ccr;
         const std::size_t total = options.train_per_class + options.eval_per_class;
         for (std::size_t idx = 0; idx < total; ++idx) {
-          params.use_seed = true;
-          params.seed = options.seed + static_cast<std::uint32_t>(
-                                           workspace_id * 100000 + global_seed_offset);
           mlvp::Dag dag = mlvp::GenerateDaggenDag(params);
+          const std::uint32_t instance_seed =
+              options.seed + static_cast<std::uint32_t>(
+                                 workspace_id * 100000 + global_instance_offset);
           if (mlvp::HasUnknownNodeTypes(dag)) {
             mlvp::AssignNodeTypes(
                 &dag,
                 options.type_strategy,
-                params.seed);
+                instance_seed);
           }
 
           const bool is_train = idx < options.train_per_class;
@@ -154,7 +154,7 @@ int main(int argc, char** argv) {
                    << topology.jump << ','
                    << topology.ccr << ','
                    << idx << '\n';
-          ++global_seed_offset;
+          ++global_instance_offset;
         }
       }
 

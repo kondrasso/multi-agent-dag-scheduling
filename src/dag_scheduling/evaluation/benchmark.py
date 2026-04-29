@@ -1,7 +1,7 @@
 """
-Offline scheduling evaluation — matches the thesis experimental protocol.
+Offline scheduling evaluation for the shared experimental protocol.
 
-Test corpus (MCTS/NN chapters): 48 topology classes × 10 instances = 480 DAGs
+Test corpus (MCTS/NN): 48 topology classes x 10 instances = 480 DAGs
 per (n, ws) combination.  Results reported as mean % improvement over DONF.
 
 Usage (single cell):
@@ -47,7 +47,7 @@ def make_test_corpus(n: int, ws: int):
 
 
 def _pct_improvement(baseline: np.ndarray, method: np.ndarray) -> float:
-    """Mean per-instance % improvement over baseline (thesis eq. Δ)."""
+    """Mean per-instance percent improvement over a baseline."""
     delta = (baseline - method) / np.where(baseline > 0, baseline, 1.0) * 100.0
     return float(delta.mean())
 
@@ -151,7 +151,7 @@ def print_table(table: dict[tuple[int, int], dict[str, np.ndarray]],
                 n_values: list[int], ws_values: list[int],
                 alg_names: list[str]):
     """
-    Print thesis-style table: rows = (ws, n), columns = % improvement over DONF.
+    Print protocol summary table: rows = (ws, n), columns = improvement over DONF.
     """
     col_w = 8
     header_algs = [a for a in alg_names if a != "DONF"]
@@ -183,7 +183,7 @@ def print_milp_proximity_table(
     ws_values: list[int],
     alg_names: list[str],
 ):
-    """Print thesis-style proximity-to-MILP table (higher is better)."""
+    """Print proximity-to-MILP table (higher is better)."""
     header_algs = [a for a in alg_names if a != "MILP"]
     col_w = 8
     print(f"\n{'':>12}" + "".join(f"  {a:>{col_w}}" for a in header_algs))

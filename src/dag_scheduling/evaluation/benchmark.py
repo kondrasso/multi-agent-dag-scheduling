@@ -27,44 +27,23 @@ import csv
 import numpy as np
 from pathlib import Path
 
-from dag_scheduling.data.generator import generate
-from dag_scheduling.data.augmentor import augment_random
-from dag_scheduling.core.platform import make_workspace
 from dag_scheduling.baselines.heuristics import run_all, BASELINES
 from dag_scheduling.algorithms.nn.train import nn_schedule
 from dag_scheduling.algorithms.mcts.train import mcts_schedule
 from dag_scheduling.milp.solve import MilpSolverConfig, solve_milp
+from dag_scheduling.protocol import (
+    FULL_TOPOLOGIES,
+    TEST_PER_CLASS,
+    make_test_corpus as _make_test_corpus,
+)
 
-# 48-class topology grid: fat × density × regularity × jump × ccr
-_FAT        = [0.2, 0.5]
-_DENSITY    = [0.1, 0.4, 0.8]
-_REGULARITY = [0.2, 0.8]
-_JUMP       = [2, 4]
-_CCR        = [0.2, 0.8]
-N_TEST_PER_CLASS = 10   # 48 × 10 = 480 DAGs per (n, ws)
-
-# seeds for the test corpus are offset far from training seeds
-_TEST_SEED_OFFSET = 100_000
+N_TEST_PER_CLASS = TEST_PER_CLASS   # 48 x 10 = 480 DAGs per (n, ws)
+TEST_INSTANCES_PER_CELL = len(FULL_TOPOLOGIES) * N_TEST_PER_CLASS
 
 
 def make_test_corpus(n: int, ws: int):
     """Generate the standard 480-DAG test corpus for one (n, ws) cell."""
-    platform = make_workspace(ws)
-    corpus, seed = [], _TEST_SEED_OFFSET + n * 1000 + ws * 100
-    for f in _FAT:
-        for d in _DENSITY:
-            for r in _REGULARITY:
-                for j in _JUMP:
-                    for c in _CCR:
-                        for _ in range(N_TEST_PER_CLASS):
-                            dag = generate(
-                                n=n, fat=f, regular=r, density=d,
-                                jump=j, ccr=int(c * 10),
-                            )
-                            augment_random(dag, seed=seed)
-                            corpus.append((dag, platform))
-                            seed += 1
-    return corpus
+    return _make_test_corpus(n=n, ws=ws, n_per_class=N_TEST_PER_CLASS)
 
 
 def _pct_improvement(baseline: np.ndarray, method: np.ndarray) -> float:
@@ -337,7 +316,7 @@ if __name__ == "__main__":
 
     for ws in args.ws:
         for n in args.n:
-            print(f"Evaluating WS{ws} n={n} ({N_TEST_PER_CLASS * 48} DAGs) …", flush=True)
+            print(f"Evaluating WS{ws} n={n} ({TEST_INSTANCES_PER_CELL} DAGs) …", flush=True)
 
             nn_w = mcts_w = None
             if args.nn_dir:

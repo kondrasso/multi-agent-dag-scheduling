@@ -39,6 +39,8 @@ It reports:
 
 - WSL/basic host info
 - CPU count and memory
+- C/C++ build tool availability
+- local `daggen` source/binary availability
 - visible NVIDIA GPU from WSL
 - Torch CUDA visibility
 - `HiGHS` and `Gurobi` availability

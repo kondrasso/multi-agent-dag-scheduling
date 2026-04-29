@@ -1,9 +1,11 @@
 #include "mlvp/core.hpp"
+#include "mlvp/cli_utils.hpp"
 
 #include <algorithm>
 #include <array>
 #include <atomic>
 #include <cctype>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -71,29 +73,8 @@ struct BaselineCorpus {
   std::vector<std::vector<double>> makespans;
 };
 
-std::string Lowercase(std::string value) {
-  std::transform(value.begin(), value.end(), value.begin(),
-                 [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
-  return value;
-}
-
-std::vector<std::string> SplitCsvStrings(const std::string& input) {
-  std::vector<std::string> values;
-  std::stringstream stream(input);
-  std::string item;
-  while (std::getline(stream, item, ',')) {
-    item.erase(std::remove_if(item.begin(), item.end(),
-                              [](unsigned char ch) { return std::isspace(ch) != 0; }),
-               item.end());
-    if (!item.empty()) {
-      values.push_back(Lowercase(item));
-    }
-  }
-  return values;
-}
-
 ObjectiveMode ParseObjectiveMode(const std::string& value) {
-  const std::string lowered = Lowercase(value);
+  const std::string lowered = mlvp::Lowercase(value);
   if (lowered == "makespan") {
     return ObjectiveMode::kMakespan;
   }
@@ -119,7 +100,7 @@ const char* ObjectiveModeName(ObjectiveMode mode) {
 }
 
 SampleMode ParseSampleMode(const std::string& value) {
-  const std::string lowered = Lowercase(value);
+  const std::string lowered = mlvp::Lowercase(value);
   if (lowered == "random") {
     return SampleMode::kRandom;
   }
@@ -171,7 +152,7 @@ Options ParseArgs(int argc, char** argv) {
     } else if (arg == "--workspace") {
       options.workspace = std::stoi(next(arg));
     } else if (arg == "--split") {
-      options.split = Lowercase(next(arg));
+      options.split = mlvp::Lowercase(next(arg));
     } else if (arg == "--out") {
       options.out_weights = next(arg);
     } else if (arg == "--history-csv") {
@@ -196,7 +177,7 @@ Options ParseArgs(int argc, char** argv) {
     } else if (arg == "--objective") {
       options.objective = ParseObjectiveMode(next(arg));
     } else if (arg == "--baselines") {
-      options.baselines = SplitCsvStrings(next(arg));
+      options.baselines = mlvp::SplitCsvStrings(next(arg));
     } else if (arg == "--assign-types") {
       options.type_strategy = mlvp::ParseTypeAssignmentStrategy(next(arg));
     } else if (arg == "--candidate-cap") {
@@ -236,7 +217,7 @@ Options ParseArgs(int argc, char** argv) {
 
   std::vector<std::string> unique_baselines;
   for (const std::string& name : options.baselines) {
-    const std::string lowered = Lowercase(name);
+    const std::string lowered = mlvp::Lowercase(name);
     if (lowered == "mlvp") {
       throw std::invalid_argument("Baselines list must not include mlvp");
     }
@@ -251,39 +232,6 @@ Options ParseArgs(int argc, char** argv) {
     throw std::invalid_argument("--baselines is required for the selected objective");
   }
   return options;
-}
-
-std::filesystem::path WorkspaceDir(const std::string& root, int workspace) {
-  return std::filesystem::path(root) / ("ws" + std::to_string(workspace));
-}
-
-std::vector<std::string> CollectWorkspaceDots(const std::string& root, int workspace,
-                                              const std::string& split) {
-  const std::filesystem::path workspace_dir = WorkspaceDir(root, workspace);
-  std::filesystem::path dots_dir = workspace_dir;
-  if (std::filesystem::exists(workspace_dir / "train") ||
-      std::filesystem::exists(workspace_dir / "eval")) {
-    dots_dir = workspace_dir / split;
-  }
-  if (!std::filesystem::exists(dots_dir)) {
-    throw std::runtime_error("Workspace directory not found: " + dots_dir.string());
-  }
-
-  std::vector<std::string> paths;
-  for (const auto& entry : std::filesystem::directory_iterator(dots_dir)) {
-    if (entry.is_regular_file() && entry.path().extension() == ".dot") {
-      paths.push_back(entry.path().string());
-    }
-  }
-  std::sort(paths.begin(), paths.end());
-  if (paths.empty()) {
-    throw std::runtime_error("No .dot files found in " + dots_dir.string());
-  }
-  return paths;
-}
-
-std::string PathFilename(const std::string& path) {
-  return std::filesystem::path(path).filename().string();
 }
 
 std::string DeriveClassKeyFromFilename(const std::string& filename) {
@@ -331,7 +279,7 @@ std::map<std::string, std::string> LoadManifestClassKeys(const std::filesystem::
     if (cols.size() != 9) {
       throw std::runtime_error("Malformed manifest row in " + manifest_path.string());
     }
-    if (Lowercase(cols[0]) != Lowercase(split)) {
+    if (mlvp::Lowercase(cols[0]) != mlvp::Lowercase(split)) {
       continue;
     }
 
@@ -366,7 +314,7 @@ void MaybeSamplePaths(std::vector<std::string>* paths, const std::filesystem::pa
       LoadManifestClassKeys(workspace_dir, split);
   std::map<std::string, std::vector<std::string>> groups;
   for (const std::string& path : *paths) {
-    const std::string filename = PathFilename(path);
+    const std::string filename = mlvp::PathFilename(path);
     const auto manifest_it = manifest_class_keys.find(filename);
     const std::string class_key =
         manifest_it != manifest_class_keys.end()
@@ -463,13 +411,6 @@ double Mean(const std::vector<double>& values) {
   }
   return std::accumulate(values.begin(), values.end(), 0.0) /
          static_cast<double>(values.size());
-}
-
-void EnsureParentDirectory(const std::string& path) {
-  const std::filesystem::path parent = std::filesystem::path(path).parent_path();
-  if (!parent.empty()) {
-    std::filesystem::create_directories(parent);
-  }
 }
 
 BaselineCorpus PrecomputeBaselines(const Options& options,
@@ -633,9 +574,9 @@ int main(int argc, char** argv) {
     const Options options = ParseArgs(argc, argv);
 
     const std::filesystem::path workspace_dir =
-        WorkspaceDir(options.corpus_root, options.workspace);
+        mlvp::WorkspaceDir(options.corpus_root, options.workspace);
     std::vector<std::string> corpus_paths =
-        CollectWorkspaceDots(options.corpus_root, options.workspace, options.split);
+        mlvp::CollectWorkspaceDots(options.corpus_root, options.workspace, options.split);
     MaybeSamplePaths(&corpus_paths, workspace_dir, options.split, options.sample_size,
                      options.sample_mode,
                      options.seed + static_cast<std::uint32_t>(options.workspace * 100));
@@ -652,7 +593,7 @@ int main(int argc, char** argv) {
     }
 
     const std::filesystem::path platform_path =
-        WorkspaceDir(options.corpus_root, options.workspace) / "platform.csv";
+        mlvp::WorkspaceDir(options.corpus_root, options.workspace) / "platform.csv";
     const mlvp::Platform platform =
         std::filesystem::exists(platform_path)
             ? mlvp::LoadPlatformCsv(platform_path.string())
@@ -744,12 +685,12 @@ int main(int argc, char** argv) {
       PrintMetrics(gen, best);
     }
 
-    EnsureParentDirectory(options.out_weights);
+    mlvp::EnsureParentDirectory(options.out_weights);
     mlvp::SaveMlvpWeightsFile(ToWeights(best.genes), options.out_weights);
     std::cout << "saved weights -> " << options.out_weights << '\n';
 
     if (!options.history_csv.empty()) {
-      EnsureParentDirectory(options.history_csv);
+      mlvp::EnsureParentDirectory(options.history_csv);
       std::ofstream history_out(options.history_csv);
       history_out << "generation,best_objective,best_mean_makespan,mean_ratio,"
                      "best_baseline_ratio,best_baseline_improvement_pct\n";

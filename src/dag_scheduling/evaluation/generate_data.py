@@ -30,28 +30,29 @@ import argparse
 import pickle
 from pathlib import Path
 
-from dag_scheduling.algorithms.nn.train   import make_corpus as nn_corpus
-from dag_scheduling.algorithms.mcts.train import make_corpus as mcts_corpus
-from dag_scheduling.evaluation.benchmark  import make_test_corpus
-from dag_scheduling.data.generator import generate
-from dag_scheduling.data.augmentor import augment_random
-from dag_scheduling.core.platform import make_workspace, LARGE_SCALE_N
-import random
+from dag_scheduling.protocol import (
+    LARGE_TEST_SEED,
+    LARGE_TRAIN_SEED,
+    LARGE_WORKSPACES,
+    FULL_TOPOLOGIES,
+    NN_TOPOLOGIES,
+    OFFLINE_DAG_SIZES,
+    SMALL_WORKSPACES,
+    TEST_PER_CLASS,
+    TRAIN_PER_CLASS,
+    LARGE_SCALE_N,
+    make_large_random_corpus,
+    make_mcts_training_corpus,
+    make_nn_training_corpus,
+    make_test_corpus,
+)
 
-_WS_VALUES = [1, 2, 3]
-_N_VALUES  = [30, 60, 90]
-_LARGE_WS  = [4, 5, 6, 7, 8, 9]
-
-# large-scale seeds well away from small-scale seeds
-_LARGE_TRAIN_SEED = 200_000
-_LARGE_TEST_SEED  = 500_000
-
-# same parameter ranges as the small-scale topology grid (chapter 3, Table par)
-_FAT        = [0.2, 0.5]
-_DENSITY    = [0.1, 0.4, 0.8]
-_REGULARITY = [0.2, 0.8]
-_JUMP       = [2, 4]
-_CCR        = [0.2, 0.8]
+_WS_VALUES = list(SMALL_WORKSPACES)
+_N_VALUES = list(OFFLINE_DAG_SIZES)
+_LARGE_WS = list(LARGE_WORKSPACES)
+_NN_TRAIN_COUNT = len(NN_TOPOLOGIES) * TRAIN_PER_CLASS
+_MCTS_TRAIN_COUNT = len(FULL_TOPOLOGIES) * TRAIN_PER_CLASS
+_TEST_COUNT = len(FULL_TOPOLOGIES) * TEST_PER_CLASS
 
 
 def _large_corpus(ws: int, count: int, seed_offset: int):
@@ -59,22 +60,7 @@ def _large_corpus(ws: int, count: int, seed_offset: int):
     Random sampling from the thesis parameter ranges — 3000/10000 instances
     are not divisible by 48 topology classes, so large-scale uses random draw.
     """
-    n = LARGE_SCALE_N[ws]
-    platform = make_workspace(ws)
-    corpus = []
-    rng = random.Random(seed_offset)
-    for i in range(count):
-        dag = generate(
-            n=n,
-            fat=rng.choice(_FAT),
-            regular=rng.choice(_REGULARITY),
-            density=rng.choice(_DENSITY),
-            jump=rng.choice(_JUMP),
-            ccr=int(rng.choice(_CCR) * 10),
-        )
-        augment_random(dag, seed=seed_offset + i)
-        corpus.append((dag, platform))
-    return corpus
+    return make_large_random_corpus(ws=ws, count=count, seed_offset=seed_offset)
 
 
 def generate_all(
@@ -90,16 +76,16 @@ def generate_all(
     for ws in ws_values:
         for n in n_values:
             _save(out / f"train_nn_ws{ws}_n{n}.pkl",
-                  lambda ws=ws, n=n: nn_corpus(n, ws, 3),
-                  f"train NN   ws={ws} n={n} (72 DAGs)", overwrite)
+                  lambda ws=ws, n=n: make_nn_training_corpus(n=n, ws=ws),
+                  f"train NN   ws={ws} n={n} ({_NN_TRAIN_COUNT} DAGs)", overwrite)
 
             _save(out / f"train_mcts_ws{ws}_n{n}.pkl",
-                  lambda ws=ws, n=n: mcts_corpus(n, ws, 3),
-                  f"train MCTS ws={ws} n={n} (144 DAGs)", overwrite)
+                  lambda ws=ws, n=n: make_mcts_training_corpus(n=n, ws=ws),
+                  f"train MCTS ws={ws} n={n} ({_MCTS_TRAIN_COUNT} DAGs)", overwrite)
 
             _save(out / f"test_ws{ws}_n{n}.pkl",
-                  lambda ws=ws, n=n: make_test_corpus(n, ws),
-                  f"test       ws={ws} n={n} (480 DAGs)", overwrite)
+                  lambda ws=ws, n=n: make_test_corpus(n=n, ws=ws),
+                  f"test       ws={ws} n={n} ({_TEST_COUNT} DAGs)", overwrite)
 
     if large:
         for ws in _LARGE_WS:

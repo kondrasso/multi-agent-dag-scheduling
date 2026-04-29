@@ -8,8 +8,8 @@ from pathlib import Path
 import numpy as np
 
 from dag_scheduling.baselines.heuristics import BASELINES, run_all
-from dag_scheduling.evaluation.benchmark import make_test_corpus
 from dag_scheduling.milp.solve import MilpSolverConfig, solve_milp
+from dag_scheduling.protocol import make_test_corpus
 
 
 def _proximity(milp_makespan: float, alg_makespan: float) -> float:

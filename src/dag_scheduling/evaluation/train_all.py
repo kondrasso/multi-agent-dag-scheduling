@@ -33,9 +33,10 @@ from pathlib import Path
 
 from dag_scheduling.algorithms.nn.train   import train as train_nn
 from dag_scheduling.algorithms.mcts.train import train as train_mcts
+from dag_scheduling.protocol import OFFLINE_DAG_SIZES, SMALL_WORKSPACES
 
-_WS_VALUES = [1, 2, 3]
-_N_VALUES  = [30, 60, 90]
+_WS_VALUES = list(SMALL_WORKSPACES)
+_N_VALUES = list(OFFLINE_DAG_SIZES)
 
 
 def _load_corpus(data_dir: Path | None, filename: str):

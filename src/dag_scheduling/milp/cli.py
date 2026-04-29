@@ -6,20 +6,11 @@ from pathlib import Path
 
 from dag_scheduling.baselines.heuristics import run_all
 from dag_scheduling.core.platform import make_workspace
-from dag_scheduling.data.augmentor import augment_alpha_based, augment_random, inject_node_types_dot
+from dag_scheduling.data.augmentor import inject_node_types_dot
 from dag_scheduling.data.generator import generate_dot
 from dag_scheduling.data.parser import parse_dot, parse_dot_str
 from dag_scheduling.milp.solve import MilpSolverConfig, solve_milp
-
-
-def _augment_types(dag, strategy: str, seed: int) -> None:
-    if strategy == "random":
-        augment_random(dag, seed=seed)
-        return
-    if strategy == "alpha":
-        augment_alpha_based(dag)
-        return
-    raise ValueError(f"Unknown type assignment strategy: {strategy!r}")
+from dag_scheduling.protocol import assign_node_types
 
 
 def _needs_types(dag) -> bool:
@@ -65,11 +56,12 @@ def _load_dag(args: argparse.Namespace):
             density=args.density,
             jump=args.jump,
             ccr=args.ccr,
+            seed=args.seed,
         )
         dag = parse_dot_str(raw_dot)
 
     if _needs_types(dag):
-        _augment_types(dag, args.assign_types, args.seed)
+        assign_node_types(dag, strategy=args.assign_types, seed=args.seed)
         if args.typed_dot_out:
             typed_dot = inject_node_types_dot(raw_dot or "", dag)
             Path(args.typed_dot_out).write_text(typed_dot)

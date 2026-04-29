@@ -32,6 +32,11 @@ void RunPolicy(const mlvp::Dag& dag, const mlvp::Platform& platform,
   const mlvp::SimulationResult result = simulator.Run(policy);
   assert(result.completed_tasks == dag.size());
   assert(result.makespan > 0.0);
+  const mlvp::ScheduleValidation validation =
+      mlvp::ValidateSimulationResult(dag, platform, result);
+  assert(validation.valid);
+  assert(result.max_ready_width > 0);
+  assert(result.max_visible_width >= result.max_ready_width);
 }
 
 void CheckPersistenceRoundTrip() {
@@ -76,6 +81,9 @@ int main() {
   assert(mlvp::MakeMlvpWorkspace(2, 7).size() == 6);
   assert(mlvp::MakeMlvpWorkspace(3, 7).size() == 12);
   assert(mlvp::MakeMlvpWorkspace(4, 7).size() == 24);
+  assert(mlvp::MlvpDagSizeForWorkspace(1) == 3000);
+  assert(mlvp::MlvpDagSizeForWorkspace(4) == 24000);
+  assert(mlvp::MlvpTopologyClasses().size() == 48);
 
   assert(mlvp::HasUnknownNodeTypes(untyped));
   mlvp::AssignNodeTypes(&untyped, mlvp::TypeAssignmentStrategy::kAlphaBased, 0);

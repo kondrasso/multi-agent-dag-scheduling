@@ -7,7 +7,6 @@ commit() after each placement decision.
 """
 
 from __future__ import annotations
-import math
 from copy import copy
 
 from dag_scheduling.core.dag import SchedulingDAG
@@ -58,8 +57,6 @@ class ScheduleState:
         exc_id, start, finish = self.eft_place(task_idx)
         self.commit(task_idx, exc_id, start, finish)
         return exc_id, start, finish
-
-
 
     def is_done(self) -> bool:
         return len(self.scheduled) == len(self.dag)

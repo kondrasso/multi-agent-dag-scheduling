@@ -81,10 +81,21 @@ int main(int argc, char** argv) {
 
     mlvp::OnlineSimulator simulator(std::move(dag), std::move(platform));
     const mlvp::SimulationResult result = simulator.Run(*policy);
+    const mlvp::ScheduleValidation validation =
+        mlvp::ValidateSimulationResult(simulator.dag(), simulator.platform(), result);
+    if (!validation.valid) {
+      std::cerr << "invalid schedule:\n";
+      for (const std::string& error : validation.errors) {
+        std::cerr << "  " << error << '\n';
+      }
+      return 1;
+    }
 
     std::cout << "policy=" << policy->name()
               << " tasks=" << result.completed_tasks
               << " cycles=" << result.cycles
+              << " max_ready_width=" << result.max_ready_width
+              << " max_visible_width=" << result.max_visible_width
               << " makespan=" << result.makespan << '\n';
     return 0;
   } catch (const std::exception& error) {

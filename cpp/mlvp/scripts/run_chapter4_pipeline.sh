@@ -191,10 +191,13 @@ fi
 mkdir -p "${CORPUS_ROOT}" "${REPORT_ROOT}"
 
 COMBINED_CSV="${REPORT_ROOT}/summary_eval.csv"
+COMBINED_INSTANCE_CSV="${REPORT_ROOT}/instances_eval.csv"
 COMBINED_JSON_INDEX="${REPORT_ROOT}/summary_index.txt"
 : > "${COMBINED_CSV}"
+: > "${COMBINED_INSTANCE_CSV}"
 : > "${COMBINED_JSON_INDEX}"
 echo "workspace,dag_size,instances,policy,mean_makespan,mlvp_improvement_pct" >> "${COMBINED_CSV}"
+echo "workspace,dag_size,instance,instance_name,policy,makespan,completed_tasks,cycles,max_ready_width,max_visible_width,mlvp_improvement_pct" >> "${COMBINED_INSTANCE_CSV}"
 
 IFS=',' read -r -a WORKSPACE_LIST <<< "${WORKSPACES}"
 
@@ -210,6 +213,7 @@ for RAW_WS in "${WORKSPACE_LIST[@]}"; do
   WS_WEIGHTS="${WS_REPORT_DIR}/weights.txt"
   WS_HISTORY="${WS_REPORT_DIR}/history.csv"
   WS_EVAL_CSV="${WS_REPORT_DIR}/eval.csv"
+  WS_INSTANCE_CSV="${WS_REPORT_DIR}/instances.csv"
   WS_EVAL_JSON="${WS_REPORT_DIR}/eval.json"
 
   mkdir -p "${WS_REPORT_DIR}"
@@ -264,11 +268,14 @@ for RAW_WS in "${WORKSPACE_LIST[@]}"; do
     --max-iterations "${MAX_ITERATIONS}" \
     --seed "${WS_SEED}" \
     --summary-csv "${WS_EVAL_CSV}" \
+    --instances-csv "${WS_INSTANCE_CSV}" \
     --summary-json "${WS_EVAL_JSON}"
 
   tail -n +2 "${WS_EVAL_CSV}" >> "${COMBINED_CSV}"
+  tail -n +2 "${WS_INSTANCE_CSV}" >> "${COMBINED_INSTANCE_CSV}"
   echo "ws${WS},${WS_EVAL_JSON}" >> "${COMBINED_JSON_INDEX}"
 done
 
 echo "combined summary -> ${COMBINED_CSV}"
+echo "combined instances -> ${COMBINED_INSTANCE_CSV}"
 echo "json index -> ${COMBINED_JSON_INDEX}"

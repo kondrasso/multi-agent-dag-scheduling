@@ -259,5 +259,6 @@ fi
   echo
   echo "end_utc=$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
   echo "summary_csv=${REPORT_DIR}/summary_eval.csv"
+  echo "instances_csv=${REPORT_DIR}/instances_eval.csv"
   echo "summary_index=${REPORT_DIR}/summary_index.txt"
 } | tee -a "${LOG_PATH}"

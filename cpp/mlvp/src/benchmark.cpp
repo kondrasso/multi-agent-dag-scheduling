@@ -1,6 +1,8 @@
 #include "mlvp/core.hpp"
+#include "mlvp/cli_utils.hpp"
 
 #include <algorithm>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -40,27 +42,6 @@ void PrintUsage() {
       << "                      [--max-iterations N] [--alpha-w X] [--alpha-q X] [--alpha-z X]\n";
 }
 
-std::string Lowercase(std::string value) {
-  std::transform(value.begin(), value.end(), value.begin(),
-                 [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
-  return value;
-}
-
-std::vector<std::string> SplitCsv(const std::string& input) {
-  std::vector<std::string> values;
-  std::stringstream stream(input);
-  std::string item;
-  while (std::getline(stream, item, ',')) {
-    item.erase(std::remove_if(item.begin(), item.end(),
-                              [](unsigned char ch) { return std::isspace(ch) != 0; }),
-               item.end());
-    if (!item.empty()) {
-      values.push_back(Lowercase(item));
-    }
-  }
-  return values;
-}
-
 Options ParseArgs(int argc, char** argv) {
   Options options;
   options.mlvp_config.seed = options.seed;
@@ -92,7 +73,7 @@ Options ParseArgs(int argc, char** argv) {
     } else if (arg == "--assign-types") {
       options.type_strategy = mlvp::ParseTypeAssignmentStrategy(next(arg));
     } else if (arg == "--policies") {
-      options.policies = SplitCsv(next(arg));
+      options.policies = mlvp::SplitCsvStrings(next(arg));
     } else if (arg == "--save-dir") {
       options.save_dir = next(arg);
     } else if (arg == "--daggen-binary") {
@@ -145,11 +126,8 @@ Options ParseArgs(int argc, char** argv) {
 std::vector<std::string> CollectDotPaths(const Options& options) {
   std::vector<std::string> paths = options.dot_paths;
   if (!options.dot_dir.empty()) {
-    for (const auto& entry : std::filesystem::directory_iterator(options.dot_dir)) {
-      if (entry.is_regular_file() && entry.path().extension() == ".dot") {
-        paths.push_back(entry.path().string());
-      }
-    }
+    const std::vector<std::string> dir_paths = mlvp::CollectDotFiles(options.dot_dir);
+    paths.insert(paths.end(), dir_paths.begin(), dir_paths.end());
   }
   std::sort(paths.begin(), paths.end());
   return paths;
@@ -174,6 +152,8 @@ int main(int argc, char** argv) {
       corpus.push_back(mlvp::ParseDotFile(path));
     }
     for (std::size_t i = 0; i < options.generate_count; ++i) {
+      options.daggen.use_seed = true;
+      options.daggen.seed = options.seed + static_cast<std::uint32_t>(i);
       corpus.push_back(mlvp::GenerateDaggenDag(options.daggen));
     }
 
@@ -214,6 +194,20 @@ int main(int argc, char** argv) {
             mlvp::MakePolicy(options.policies[policy_idx], config);
         mlvp::OnlineSimulator simulator(corpus[instance_idx], workspace);
         const mlvp::SimulationResult result = simulator.Run(*policy);
+        const mlvp::ScheduleValidation validation =
+            mlvp::ValidateSimulationResult(corpus[instance_idx], workspace, result);
+        if (!validation.valid) {
+          std::ostringstream error;
+          error << "invalid schedule for instance=" << instance_idx
+                << " policy=" << policy->name() << ": ";
+          for (std::size_t i = 0; i < validation.errors.size(); ++i) {
+            if (i > 0) {
+              error << "; ";
+            }
+            error << validation.errors[i];
+          }
+          throw std::runtime_error(error.str());
+        }
         results[policy->name()].push_back(result.makespan);
       }
     }

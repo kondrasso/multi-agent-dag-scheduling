@@ -6,11 +6,25 @@ This file is a compact state summary for continuing work on another machine.
 
 - `MLVP` is implemented in `C++` under `cpp/mlvp`
 - offline Python side includes:
+  - shared protocol/corpus generation in `src/dag_scheduling/protocol.py`
   - heuristic baselines
   - MARL
   - MCTS
   - NN hyper-heuristic
   - MILP reference model
+
+## Current WSL check, 2026-04-28
+
+- Host reports `24` CPUs, `15.20 GiB` RAM, `4.00 GiB` swap
+- recommended CPU job count from preflight: `22`
+- build tools are available: `make`, `cc`, `gcc`, `c++`, `g++`
+- Python deps import successfully: `torch`, `ray`, `pyomo`
+- `HiGHS` is available and passes the tiny MILP solve
+- `Gurobi` is not available
+- Torch CUDA sees `NVIDIA GeForce RTX 3060`
+- `daggen` submodule has been initialized, patched, and built
+- local DAGGEN patch now fixes C linkage and adds deterministic `--seed`
+- C++ MLVP build and smoke test pass
 
 ## MLVP
 

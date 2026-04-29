@@ -1,14 +1,12 @@
 #include "mlvp/core.hpp"
+#include "mlvp/cli_utils.hpp"
 
-#include <algorithm>
-#include <cmath>
-#include <cctype>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
-#include <stdexcept>
 #include <vector>
 
 namespace {
@@ -23,36 +21,6 @@ struct Options {
   std::uint32_t seed = 0;
   bool overwrite = false;
 };
-
-int DagSizeForWorkspace(int workspace) {
-  switch (workspace) {
-    case 1:
-      return 3000;
-    case 2:
-      return 6000;
-    case 3:
-      return 12000;
-    case 4:
-      return 24000;
-    default:
-      throw std::invalid_argument("workspace must be in 1..4");
-  }
-}
-
-std::vector<int> SplitCsvInts(const std::string& input) {
-  std::vector<int> values;
-  std::stringstream stream(input);
-  std::string item;
-  while (std::getline(stream, item, ',')) {
-    item.erase(std::remove_if(item.begin(), item.end(),
-                              [](unsigned char ch) { return std::isspace(ch) != 0; }),
-               item.end());
-    if (!item.empty()) {
-      values.push_back(std::stoi(item));
-    }
-  }
-  return values;
-}
 
 void PrintUsage() {
   std::cout
@@ -76,7 +44,7 @@ Options ParseArgs(int argc, char** argv) {
     if (arg == "--out-root") {
       options.out_root = next(arg);
     } else if (arg == "--workspace") {
-      options.workspaces = SplitCsvInts(next(arg));
+      options.workspaces = mlvp::SplitCsvInts(next(arg));
     } else if (arg == "--assign-types") {
       options.type_strategy = mlvp::ParseTypeAssignmentStrategy(next(arg));
     } else if (arg == "--train-per-class") {
@@ -106,31 +74,13 @@ Options ParseArgs(int argc, char** argv) {
   return options;
 }
 
-std::string CodeTenths(double value) {
-  std::ostringstream code;
-  code << std::setw(2) << std::setfill('0') << static_cast<int>(std::lround(value * 10.0));
-  return code.str();
-}
-
-std::string InstanceName(int dag_size, double fat, double density, double regularity,
-                         int jump, int ccr, std::size_t index) {
+std::string InstanceName(int dag_size, const mlvp::TopologyClass& topology,
+                         std::size_t index) {
   std::ostringstream name;
-  name << "n" << dag_size
-       << "_f" << CodeTenths(fat)
-       << "_d" << CodeTenths(density)
-       << "_r" << CodeTenths(regularity)
-       << "_j" << jump
-       << "_c" << ccr
+  name << "n" << dag_size << '_' << mlvp::TopologyClassKey(topology)
        << '_' << std::setw(4) << std::setfill('0') << index
        << ".dot";
   return name.str();
-}
-
-void EnsureWritablePath(const std::filesystem::path& path, bool overwrite) {
-  if (std::filesystem::exists(path) && !overwrite) {
-    throw std::runtime_error("Refusing to overwrite existing file without --overwrite: " +
-                             path.string());
-  }
 }
 
 }  // namespace
@@ -139,15 +89,11 @@ int main(int argc, char** argv) {
   try {
     const Options options = ParseArgs(argc, argv);
 
-    static const std::vector<double> fats = {0.2, 0.5};
-    static const std::vector<double> densities = {0.1, 0.4, 0.8};
-    static const std::vector<double> regularities = {0.2, 0.8};
-    static const std::vector<int> jumps = {2, 4};
-    static const std::vector<int> ccr_values = {2, 8};
+    const std::vector<mlvp::TopologyClass> topologies = mlvp::MlvpTopologyClasses();
 
     for (int workspace_id : options.workspaces) {
       const std::filesystem::path workspace_dir =
-          std::filesystem::path(options.out_root) / ("ws" + std::to_string(workspace_id));
+          mlvp::WorkspaceDir(options.out_root, workspace_id);
       const std::filesystem::path train_dir = workspace_dir / "train";
       const std::filesystem::path eval_dir = workspace_dir / "eval";
       std::filesystem::create_directories(train_dir);
@@ -157,72 +103,65 @@ int main(int argc, char** argv) {
           mlvp::MakeMlvpWorkspace(workspace_id,
                                   options.seed + static_cast<std::uint32_t>(workspace_id));
       const std::filesystem::path platform_path = workspace_dir / "platform.csv";
-      EnsureWritablePath(platform_path, options.overwrite);
+      mlvp::EnsureWritablePath(platform_path, options.overwrite);
       mlvp::SavePlatformCsv(platform, platform_path.string());
 
       const std::filesystem::path manifest_path = workspace_dir / "manifest.csv";
-      EnsureWritablePath(manifest_path, options.overwrite);
+      mlvp::EnsureWritablePath(manifest_path, options.overwrite);
       std::ofstream manifest(manifest_path);
       manifest << "split,path,n,fat,density,regularity,jump,ccr,index\n";
 
       mlvp::DaggenParams params;
       params.binary = options.daggen_binary;
-      params.n = DagSizeForWorkspace(workspace_id);
+      params.n = mlvp::MlvpDagSizeForWorkspace(workspace_id);
 
       std::size_t global_seed_offset = 0;
-      for (double fat : fats) {
-        params.fat = fat;
-        for (double density : densities) {
-          params.density = density;
-          for (double regularity : regularities) {
-            params.regular = regularity;
-            for (int jump : jumps) {
-              params.jump = jump;
-              for (int ccr : ccr_values) {
-                params.ccr = ccr;
-                const std::size_t total = options.train_per_class + options.eval_per_class;
-                for (std::size_t idx = 0; idx < total; ++idx) {
-                  mlvp::Dag dag = mlvp::GenerateDaggenDag(params);
-                  if (mlvp::HasUnknownNodeTypes(dag)) {
-                    mlvp::AssignNodeTypes(
-                        &dag,
-                        options.type_strategy,
-                        options.seed + static_cast<std::uint32_t>(
-                                           workspace_id * 100000 + global_seed_offset));
-                  }
-
-                  const bool is_train = idx < options.train_per_class;
-                  const std::string split = is_train ? "train" : "eval";
-                  const std::filesystem::path split_dir = is_train ? train_dir : eval_dir;
-                  const std::string file_name =
-                      InstanceName(params.n, fat, density, regularity, jump, ccr, idx);
-                  const std::filesystem::path out_path = split_dir / file_name;
-                  EnsureWritablePath(out_path, options.overwrite);
-
-                  std::ofstream output(out_path);
-                  output << mlvp::ToDotText(dag);
-
-                  manifest << split << ','
-                           << out_path.filename().string() << ','
-                           << params.n << ','
-                           << fat << ','
-                           << density << ','
-                           << regularity << ','
-                           << jump << ','
-                           << ccr << ','
-                           << idx << '\n';
-                  ++global_seed_offset;
-                }
-              }
-            }
+      for (const mlvp::TopologyClass& topology : topologies) {
+        params.fat = topology.fat;
+        params.density = topology.density;
+        params.regular = topology.regularity;
+        params.jump = topology.jump;
+        params.ccr = topology.ccr;
+        const std::size_t total = options.train_per_class + options.eval_per_class;
+        for (std::size_t idx = 0; idx < total; ++idx) {
+          params.use_seed = true;
+          params.seed = options.seed + static_cast<std::uint32_t>(
+                                           workspace_id * 100000 + global_seed_offset);
+          mlvp::Dag dag = mlvp::GenerateDaggenDag(params);
+          if (mlvp::HasUnknownNodeTypes(dag)) {
+            mlvp::AssignNodeTypes(
+                &dag,
+                options.type_strategy,
+                params.seed);
           }
+
+          const bool is_train = idx < options.train_per_class;
+          const std::string split = is_train ? "train" : "eval";
+          const std::filesystem::path split_dir = is_train ? train_dir : eval_dir;
+          const std::string file_name = InstanceName(params.n, topology, idx);
+          const std::filesystem::path out_path = split_dir / file_name;
+          mlvp::EnsureWritablePath(out_path, options.overwrite);
+
+          std::ofstream output(out_path);
+          output << mlvp::ToDotText(dag);
+
+          manifest << split << ','
+                   << out_path.filename().string() << ','
+                   << params.n << ','
+                   << topology.fat << ','
+                   << topology.density << ','
+                   << topology.regularity << ','
+                   << topology.jump << ','
+                   << topology.ccr << ','
+                   << idx << '\n';
+          ++global_seed_offset;
         }
       }
 
       std::cout << "froze WS" << workspace_id
                 << " n=" << params.n
-                << " train=" << (48 * options.train_per_class)
-                << " eval=" << (48 * options.eval_per_class)
+                << " train=" << (topologies.size() * options.train_per_class)
+                << " eval=" << (topologies.size() * options.eval_per_class)
                 << " -> " << workspace_dir << '\n';
     }
     return 0;

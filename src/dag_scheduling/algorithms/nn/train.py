@@ -19,45 +19,26 @@ Usage:
 
 from __future__ import annotations
 import argparse
-import random
 import numpy as np
 from pathlib import Path
 
-from dag_scheduling.data.generator import generate
-from dag_scheduling.data.augmentor import augment_random
-from dag_scheduling.core.platform import make_workspace, Platform
+from dag_scheduling.core.platform import Platform
 from dag_scheduling.core.simulator import ScheduleState
 from dag_scheduling.core.metrics import compute_metrics, normalise
 from dag_scheduling.algorithms.ga import run_ga
-from dag_scheduling.algorithms.nn.model import (
-    score_tasks, CHROMOSOME_LEN, NN_FEATURE_INDICES,
-)
+from dag_scheduling.algorithms.nn.model import score_tasks, CHROMOSOME_LEN
+from dag_scheduling.protocol import TRAIN_PER_CLASS, make_nn_training_corpus
 
-# topology grid (same as MARL — 24 classes, fat=0.5 fixed)
-_DENSITY    = [0.1, 0.4, 0.8]
-_REGULARITY = [0.2, 0.8]
-_JUMP       = [2, 4]
-_CCR        = [0.2, 0.8]
-N_TRAIN_PER_CLASS = 3
+N_TRAIN_PER_CLASS = TRAIN_PER_CLASS
 
 
 def make_corpus(n: int, ws: int, n_per_class: int, seed_offset: int = 0):
-    platform = make_workspace(ws)
-    corpus = []
-    idx = seed_offset
-    for d in _DENSITY:
-        for r in _REGULARITY:
-            for j in _JUMP:
-                for c in _CCR:
-                    for _ in range(n_per_class):
-                        dag = generate(
-                            n=n, fat=0.5, regular=r, density=d,
-                            jump=j, ccr=int(c * 10),
-                        )
-                        augment_random(dag, seed=idx)
-                        corpus.append((dag, platform))
-                        idx += 1
-    return corpus
+    return make_nn_training_corpus(
+        n=n,
+        ws=ws,
+        n_per_class=n_per_class,
+        seed_offset=seed_offset,
+    )
 
 
 def nn_schedule(dag, platform: Platform, weights: np.ndarray) -> float:

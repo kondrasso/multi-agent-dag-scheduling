@@ -21,35 +21,21 @@ import random
 import ray
 from ray.rllib.algorithms.ppo import PPOConfig
 
-from dag_scheduling.data.generator import generate
-from dag_scheduling.data.augmentor import augment_random
-from dag_scheduling.core.platform import make_workspace
 from dag_scheduling.env.offline_env import OfflineSchedulingEnv, AGENT_IDS
+from dag_scheduling.protocol import TEST_PER_CLASS, TRAIN_PER_CLASS, make_nn_training_corpus
 
-# baseline parameter grid (Table in problem_statement, fat=0.5 fixed)
-DENSITY   = [0.1, 0.4, 0.8]
-REGULARITY = [0.2, 0.8]
-JUMP      = [2, 4]
-CCR       = [0.2, 0.8]
-N_TRAIN_PER_CLASS = 3    # 24 classes × 3 = 72 training DAGs per size
-N_TEST_PER_CLASS  = 20   # 24 classes × 20 = 480 test DAGs per size
+N_TRAIN_PER_CLASS = TRAIN_PER_CLASS   # 24 classes x 3 = 72 training DAGs
+N_TEST_PER_CLASS = TEST_PER_CLASS * 2  # 24 classes x 20 = 480 test DAGs
 
 
 def make_corpus(n: int, ws: int, n_per_class: int, seed_offset: int = 0):
     """Generate a corpus of (dag, platform) pairs covering all topology classes."""
-    platform = make_workspace(ws)
-    corpus = []
-    idx = seed_offset
-    for d in DENSITY:
-        for r in REGULARITY:
-            for j in JUMP:
-                for c in CCR:
-                    for _ in range(n_per_class):
-                        dag = generate(n=n, fat=0.5, regular=r, density=d, jump=j, ccr=int(c * 10))
-                        augment_random(dag, seed=idx)
-                        corpus.append((dag, platform))
-                        idx += 1
-    return corpus
+    return make_nn_training_corpus(
+        n=n,
+        ws=ws,
+        n_per_class=n_per_class,
+        seed_offset=seed_offset,
+    )
 
 
 class CorpusEnv(OfflineSchedulingEnv):

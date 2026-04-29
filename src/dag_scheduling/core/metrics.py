@@ -25,7 +25,6 @@ WOD_2 alpha (two-hop weight) is not fixed in the thesis; WOD2_ALPHA = 0.5 is use
 """
 
 from __future__ import annotations
-import math
 import numpy as np
 
 from dag_scheduling.core.dag import SchedulingDAG

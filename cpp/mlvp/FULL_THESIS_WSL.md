@@ -48,6 +48,7 @@ These are the current wrapper defaults:
 - `--seed 12345`
 
 `best-baseline-ratio` means MLVP is tuned against the strongest enabled baseline on each training instance, not only against DONF.
+The seed is passed through to platform generation, type assignment, MLVP sampling, and the patched DAGGEN binary, so frozen corpora are reproducible.
 
 ## WSL prerequisites
 
@@ -154,10 +155,12 @@ Typical files:
 - `reports/`
 - `pipeline.log`
 - `reports/summary_eval.csv`
+- `reports/instances_eval.csv`
 - `reports/summary_index.txt`
 - `reports/ws*/weights.txt`
 - `reports/ws*/history.csv`
 - `reports/ws*/eval.csv`
+- `reports/ws*/instances.csv`
 - `reports/ws*/eval.json`
 
 Follow the live pipeline log:
@@ -170,6 +173,12 @@ Inspect the combined summary:
 
 ```bash
 cat cpp/mlvp/runs/<run_name>/reports/summary_eval.csv
+```
+
+Inspect per-instance makespans and MLVP-vs-baseline improvements:
+
+```bash
+cat cpp/mlvp/runs/<run_name>/reports/instances_eval.csv
 ```
 
 Pretty-print the combined summary if `column` is available:

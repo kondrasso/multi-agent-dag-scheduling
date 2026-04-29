@@ -32,13 +32,73 @@ fi
 echo "recommended_cpu_jobs=$(( CPU_COUNT > 2 ? CPU_COUNT - 2 : 1 ))"
 echo
 
+echo "[build_tools]"
+report_tool() {
+  local label=$1
+  local binary=$2
+  local path
+  local output
+  if path=$(command -v "${binary}" 2>/dev/null); then
+    echo "${label}_path=${path}"
+    if output=$("${binary}" --version 2>&1); then
+      echo "${label}_version=${output%%$'\n'*}"
+    else
+      echo "${label}_version=error"
+    fi
+  else
+    echo "${label}=not_found"
+  fi
+}
+report_tool make make
+report_tool cc cc
+report_tool gcc gcc
+report_tool cxx c++
+report_tool gxx g++
+report_tool clangxx clang++
+echo
+
+echo "[repo_assets]"
+if [[ -d "${REPO_ROOT}/daggen" ]]; then
+  echo "daggen_source=present"
+else
+  echo "daggen_source=missing"
+fi
+if [[ -x "${REPO_ROOT}/daggen/daggen" ]]; then
+  echo "daggen_binary=${REPO_ROOT}/daggen/daggen"
+elif command -v daggen >/dev/null 2>&1; then
+  echo "daggen_binary=$(command -v daggen)"
+else
+  echo "daggen_binary=missing"
+fi
+if [[ -f "${REPO_ROOT}/cpp/mlvp/Makefile" ]]; then
+  echo "mlvp_makefile=present"
+else
+  echo "mlvp_makefile=missing"
+fi
+echo
+
 echo "[gpu]"
-if [[ -x /usr/lib/wsl/lib/nvidia-smi ]]; then
-  /usr/lib/wsl/lib/nvidia-smi \
+run_nvidia_smi() {
+  local smi_bin=$1
+  local output
+  if output=$("${smi_bin}" \
     --query-gpu=name,driver_version,memory.total \
-    --format=csv,noheader
+    --format=csv,noheader 2>&1); then
+    echo "${output}"
+  else
+    echo "nvidia_smi=error"
+    while IFS= read -r line; do
+      if [[ -n "${line}" ]]; then
+        echo "nvidia_smi_error=${line}"
+      fi
+    done <<< "${output}"
+  fi
+}
+
+if [[ -x /usr/lib/wsl/lib/nvidia-smi ]]; then
+  run_nvidia_smi /usr/lib/wsl/lib/nvidia-smi
 elif command -v nvidia-smi >/dev/null 2>&1; then
-  nvidia-smi --query-gpu=name,driver_version,memory.total --format=csv,noheader
+  run_nvidia_smi nvidia-smi
 else
   echo "nvidia_smi=not_found"
 fi

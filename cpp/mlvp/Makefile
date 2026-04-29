@@ -6,6 +6,7 @@ BIN_DIR := $(BUILD_DIR)/bin
 OBJ_DIR := $(BUILD_DIR)/obj
 
 CORE_OBJ := $(OBJ_DIR)/core.o
+CLI_UTILS_OBJ := $(OBJ_DIR)/cli_utils.o
 APP_OBJ := $(OBJ_DIR)/main.o
 TEST_OBJ := $(OBJ_DIR)/smoke_test.o
 BENCHMARK_OBJ := $(OBJ_DIR)/benchmark.o
@@ -36,22 +37,25 @@ $(BIN_DIR) $(OBJ_DIR):
 $(CORE_OBJ): src/core.cpp include/mlvp/core.hpp | $(OBJ_DIR)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
+$(CLI_UTILS_OBJ): src/cli_utils.cpp include/mlvp/cli_utils.hpp | $(OBJ_DIR)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
 $(APP_OBJ): src/main.cpp include/mlvp/core.hpp | $(OBJ_DIR)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 $(TEST_OBJ): tests/smoke_test.cpp include/mlvp/core.hpp | $(OBJ_DIR)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-$(BENCHMARK_OBJ): src/benchmark.cpp include/mlvp/core.hpp | $(OBJ_DIR)
+$(BENCHMARK_OBJ): src/benchmark.cpp include/mlvp/core.hpp include/mlvp/cli_utils.hpp | $(OBJ_DIR)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-$(EVAL_MATRIX_OBJ): src/eval_matrix.cpp include/mlvp/core.hpp | $(OBJ_DIR)
+$(EVAL_MATRIX_OBJ): src/eval_matrix.cpp include/mlvp/core.hpp include/mlvp/cli_utils.hpp | $(OBJ_DIR)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-$(FREEZE_CORPUS_OBJ): src/freeze_corpus.cpp include/mlvp/core.hpp | $(OBJ_DIR)
+$(FREEZE_CORPUS_OBJ): src/freeze_corpus.cpp include/mlvp/core.hpp include/mlvp/cli_utils.hpp | $(OBJ_DIR)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-$(TUNE_WEIGHTS_OBJ): src/tune_weights.cpp include/mlvp/core.hpp | $(OBJ_DIR)
+$(TUNE_WEIGHTS_OBJ): src/tune_weights.cpp include/mlvp/core.hpp include/mlvp/cli_utils.hpp | $(OBJ_DIR)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 $(APP): $(CORE_OBJ) $(APP_OBJ) | $(BIN_DIR)
@@ -60,14 +64,14 @@ $(APP): $(CORE_OBJ) $(APP_OBJ) | $(BIN_DIR)
 $(TEST): $(CORE_OBJ) $(TEST_OBJ) | $(BIN_DIR)
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
-$(BENCHMARK): $(CORE_OBJ) $(BENCHMARK_OBJ) | $(BIN_DIR)
+$(BENCHMARK): $(CORE_OBJ) $(CLI_UTILS_OBJ) $(BENCHMARK_OBJ) | $(BIN_DIR)
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
-$(EVAL_MATRIX): $(CORE_OBJ) $(EVAL_MATRIX_OBJ) | $(BIN_DIR)
+$(EVAL_MATRIX): $(CORE_OBJ) $(CLI_UTILS_OBJ) $(EVAL_MATRIX_OBJ) | $(BIN_DIR)
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
-$(FREEZE_CORPUS): $(CORE_OBJ) $(FREEZE_CORPUS_OBJ) | $(BIN_DIR)
+$(FREEZE_CORPUS): $(CORE_OBJ) $(CLI_UTILS_OBJ) $(FREEZE_CORPUS_OBJ) | $(BIN_DIR)
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
-$(TUNE_WEIGHTS): $(CORE_OBJ) $(TUNE_WEIGHTS_OBJ) | $(BIN_DIR)
+$(TUNE_WEIGHTS): $(CORE_OBJ) $(CLI_UTILS_OBJ) $(TUNE_WEIGHTS_OBJ) | $(BIN_DIR)
 	$(CXX) $(CXXFLAGS) $^ -o $@

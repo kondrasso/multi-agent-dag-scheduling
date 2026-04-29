@@ -85,7 +85,21 @@ struct DaggenParams {
   double maxalpha = 0.2;
   int mindata = 2048;
   int maxdata = 11264;
+  bool use_seed = false;
+  std::uint32_t seed = 0;
 };
+
+struct TopologyClass {
+  double fat = 0.0;
+  double density = 0.0;
+  double regularity = 0.0;
+  int jump = 0;
+  int ccr = 0;
+};
+
+int MlvpDagSizeForWorkspace(int workspace_id);
+std::vector<TopologyClass> MlvpTopologyClasses();
+std::string TopologyClassKey(const TopologyClass& topology);
 
 std::string GenerateDaggenDot(const DaggenParams& params);
 Dag GenerateDaggenDag(const DaggenParams& params);
@@ -195,10 +209,20 @@ struct SimulationResult {
   double makespan = 0.0;
   std::size_t completed_tasks = 0;
   std::size_t cycles = 0;
+  std::size_t max_ready_width = 0;
+  std::size_t max_visible_width = 0;
   std::vector<int> task_executor_ids;
   std::vector<double> task_start_times;
   std::vector<double> task_finish_times;
 };
+
+struct ScheduleValidation {
+  bool valid = true;
+  std::vector<std::string> errors;
+};
+
+ScheduleValidation ValidateSimulationResult(
+    const Dag& dag, const Platform& platform, const SimulationResult& result);
 
 class OnlineSimulator {
  public:
@@ -259,6 +283,7 @@ class OnlineSimulator {
   void MarkTaskReady(std::size_t task_index, double ready_time);
   bool AdvanceToNextEvent();
   void UpdateReadyTasks(const std::vector<std::size_t>& completed_tasks);
+  void RefreshWindowStats();
   AssignmentEstimate EstimateAssignment(std::size_t task_index, std::size_t executor_index) const;
   void CommitTask(std::size_t executor_index, std::size_t task_index);
   std::vector<std::pair<std::size_t, std::size_t>> ResolveAssignments(
@@ -274,6 +299,8 @@ class OnlineSimulator {
   std::size_t finished_tasks_ = 0;
   std::size_t cycles_ = 0;
   std::size_t ready_sequence_ = 0;
+  std::size_t max_ready_width_ = 0;
+  std::size_t max_visible_width_ = 0;
 
   std::vector<TaskRuntimeState> runtime_;
   std::vector<std::size_t> ready_tasks_;

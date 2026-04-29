@@ -1,7 +1,8 @@
 #include "mlvp/core.hpp"
+#include "mlvp/cli_utils.hpp"
 
 #include <algorithm>
-#include <cctype>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -23,11 +24,26 @@ struct WorkspaceSummary {
   std::map<std::string, std::vector<double>> makespans;
 };
 
+struct InstanceResultRow {
+  int workspace = 0;
+  int dag_size = 0;
+  std::size_t instance = 0;
+  std::string instance_name;
+  std::string policy;
+  double makespan = 0.0;
+  std::size_t completed_tasks = 0;
+  std::size_t cycles = 0;
+  std::size_t max_ready_width = 0;
+  std::size_t max_visible_width = 0;
+  std::optional<double> mlvp_improvement_pct;
+};
+
 struct Options {
   std::string dot_root;
   std::size_t generate_per_class = 0;
   std::string save_root;
   std::string summary_csv;
+  std::string instances_csv;
   std::string summary_json;
   std::string split = "eval";
   std::string weights_file;
@@ -39,64 +55,14 @@ struct Options {
   mlvp::MlvpConfig mlvp_config;
 };
 
-int DagSizeForWorkspace(int workspace) {
-  switch (workspace) {
-    case 1:
-      return 3000;
-    case 2:
-      return 6000;
-    case 3:
-      return 12000;
-    case 4:
-      return 24000;
-    default:
-      throw std::invalid_argument("workspace must be in 1..4");
-  }
-}
-
-std::string Lowercase(std::string value) {
-  std::transform(value.begin(), value.end(), value.begin(),
-                 [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
-  return value;
-}
-
-std::vector<std::string> SplitCsvStrings(const std::string& input) {
-  std::vector<std::string> values;
-  std::stringstream stream(input);
-  std::string item;
-  while (std::getline(stream, item, ',')) {
-    item.erase(std::remove_if(item.begin(), item.end(),
-                              [](unsigned char ch) { return std::isspace(ch) != 0; }),
-               item.end());
-    if (!item.empty()) {
-      values.push_back(Lowercase(item));
-    }
-  }
-  return values;
-}
-
-std::vector<int> SplitCsvInts(const std::string& input) {
-  std::vector<int> values;
-  std::stringstream stream(input);
-  std::string item;
-  while (std::getline(stream, item, ',')) {
-    item.erase(std::remove_if(item.begin(), item.end(),
-                              [](unsigned char ch) { return std::isspace(ch) != 0; }),
-               item.end());
-    if (!item.empty()) {
-      values.push_back(std::stoi(item));
-    }
-  }
-  return values;
-}
-
 void PrintUsage() {
   std::cout
       << "Usage: mlvp_eval_matrix [--dot-root DIR | --generate-per-class N]\n"
       << "                        [--workspace 1,2,3,4] [--assign-types random|alpha]\n"
       << "                        [--policies csv] [--save-root DIR]\n"
       << "                        [--split train|eval] [--weights-file PATH]\n"
-      << "                        [--summary-csv PATH] [--summary-json PATH]\n"
+      << "                        [--summary-csv PATH] [--instances-csv PATH]\n"
+      << "                        [--summary-json PATH]\n"
       << "                        [--seed N] [--daggen-binary PATH]\n"
       << "                        [--candidate-cap N] [--gamma X] [--epsilon X]\n"
       << "                        [--max-iterations N] [--alpha-w X] [--alpha-q X] [--alpha-z X]\n";
@@ -120,19 +86,21 @@ Options ParseArgs(int argc, char** argv) {
     } else if (arg == "--generate-per-class") {
       options.generate_per_class = static_cast<std::size_t>(std::stoul(next(arg)));
     } else if (arg == "--split") {
-      options.split = Lowercase(next(arg));
+      options.split = mlvp::Lowercase(next(arg));
     } else if (arg == "--save-root") {
       options.save_root = next(arg);
     } else if (arg == "--summary-csv") {
       options.summary_csv = next(arg);
+    } else if (arg == "--instances-csv") {
+      options.instances_csv = next(arg);
     } else if (arg == "--summary-json") {
       options.summary_json = next(arg);
     } else if (arg == "--weights-file") {
       options.weights_file = next(arg);
     } else if (arg == "--workspace") {
-      options.workspaces = SplitCsvInts(next(arg));
+      options.workspaces = mlvp::SplitCsvInts(next(arg));
     } else if (arg == "--policies") {
-      options.policies = SplitCsvStrings(next(arg));
+      options.policies = mlvp::SplitCsvStrings(next(arg));
     } else if (arg == "--assign-types") {
       options.type_strategy = mlvp::ParseTypeAssignmentStrategy(next(arg));
     } else if (arg == "--seed") {
@@ -207,63 +175,24 @@ std::optional<double> MlvpImprovementPct(const WorkspaceSummary& summary,
   return mean_delta;
 }
 
-std::filesystem::path WorkspaceDir(const std::string& root, int workspace) {
-  return std::filesystem::path(root) / ("ws" + std::to_string(workspace));
-}
-
-std::vector<std::string> CollectWorkspaceDots(const std::string& dot_root, int workspace,
-                                              const std::string& split) {
-  const std::filesystem::path workspace_dir = WorkspaceDir(dot_root, workspace);
-  std::filesystem::path dots_dir = workspace_dir;
-  if (std::filesystem::exists(workspace_dir / "train") ||
-      std::filesystem::exists(workspace_dir / "eval")) {
-    dots_dir = workspace_dir / split;
-  }
-  if (!std::filesystem::exists(dots_dir)) {
-    throw std::runtime_error("Workspace directory not found: " + dots_dir.string());
-  }
-
-  std::vector<std::string> paths;
-  for (const auto& entry : std::filesystem::directory_iterator(dots_dir)) {
-    if (entry.is_regular_file() && entry.path().extension() == ".dot") {
-      paths.push_back(entry.path().string());
-    }
-  }
-  std::sort(paths.begin(), paths.end());
-  if (paths.empty()) {
-    throw std::runtime_error("No .dot files found in " + dots_dir.string());
-  }
-  return paths;
-}
-
 std::vector<mlvp::Dag> GenerateWorkspaceCorpus(const Options& options, int workspace) {
-  static const std::vector<double> fats = {0.2, 0.5};
-  static const std::vector<double> densities = {0.1, 0.4, 0.8};
-  static const std::vector<double> regularities = {0.2, 0.8};
-  static const std::vector<int> jumps = {2, 4};
-  static const std::vector<int> ccr_values = {2, 8};
-
   std::vector<mlvp::Dag> corpus;
   mlvp::DaggenParams params;
   params.binary = options.daggen_binary;
-  params.n = DagSizeForWorkspace(workspace);
+  params.n = mlvp::MlvpDagSizeForWorkspace(workspace);
 
-  for (double fat : fats) {
-    params.fat = fat;
-    for (double density : densities) {
-      params.density = density;
-      for (double regularity : regularities) {
-        params.regular = regularity;
-        for (int jump : jumps) {
-          params.jump = jump;
-          for (int ccr : ccr_values) {
-            params.ccr = ccr;
-            for (std::size_t i = 0; i < options.generate_per_class; ++i) {
-              corpus.push_back(mlvp::GenerateDaggenDag(params));
-            }
-          }
-        }
-      }
+  std::uint32_t seed_offset = 0;
+  for (const mlvp::TopologyClass& topology : mlvp::MlvpTopologyClasses()) {
+    params.fat = topology.fat;
+    params.density = topology.density;
+    params.regular = topology.regularity;
+    params.jump = topology.jump;
+    params.ccr = topology.ccr;
+    for (std::size_t i = 0; i < options.generate_per_class; ++i) {
+      params.use_seed = true;
+      params.seed = options.seed + static_cast<std::uint32_t>(
+                                       workspace * 100000 + seed_offset++);
+      corpus.push_back(mlvp::GenerateDaggenDag(params));
     }
   }
 
@@ -277,7 +206,7 @@ void MaybeSaveCorpus(const std::string& save_root, int workspace,
   }
 
   const std::filesystem::path workspace_dir =
-      std::filesystem::path(save_root) / ("ws" + std::to_string(workspace));
+      mlvp::WorkspaceDir(save_root, workspace);
   std::filesystem::create_directories(workspace_dir);
   for (std::size_t i = 0; i < corpus.size(); ++i) {
     std::ostringstream name;
@@ -308,6 +237,32 @@ void WriteCsvSummary(const std::string& path, const std::vector<WorkspaceSummary
       }
       output << '\n';
     }
+  }
+}
+
+void WriteInstanceCsv(const std::string& path, const std::vector<InstanceResultRow>& rows) {
+  if (path.empty()) {
+    return;
+  }
+
+  std::ofstream output(path);
+  output << "workspace,dag_size,instance,instance_name,policy,makespan,completed_tasks,"
+            "cycles,max_ready_width,max_visible_width,mlvp_improvement_pct\n";
+  for (const InstanceResultRow& row : rows) {
+    output << row.workspace << ','
+           << row.dag_size << ','
+           << row.instance << ','
+           << row.instance_name << ','
+           << row.policy << ','
+           << row.makespan << ','
+           << row.completed_tasks << ','
+           << row.cycles << ','
+           << row.max_ready_width << ','
+           << row.max_visible_width << ',';
+    if (row.mlvp_improvement_pct.has_value()) {
+      output << *row.mlvp_improvement_pct;
+    }
+    output << '\n';
   }
 }
 
@@ -361,20 +316,29 @@ int main(int argc, char** argv) {
       options.mlvp_config.weights = mlvp::LoadMlvpWeightsFile(options.weights_file);
     }
     std::vector<WorkspaceSummary> summaries;
+    std::vector<InstanceResultRow> instance_rows;
 
     for (int workspace_id : options.workspaces) {
       WorkspaceSummary summary;
       summary.workspace = workspace_id;
-      summary.dag_size = DagSizeForWorkspace(workspace_id);
+      summary.dag_size = mlvp::MlvpDagSizeForWorkspace(workspace_id);
 
       std::vector<mlvp::Dag> corpus;
+      std::vector<std::string> instance_names;
       if (!options.dot_root.empty()) {
-        for (const std::string& path :
-             CollectWorkspaceDots(options.dot_root, workspace_id, options.split)) {
+        const std::vector<std::string> paths =
+            mlvp::CollectWorkspaceDots(options.dot_root, workspace_id, options.split);
+        for (const std::string& path : paths) {
           corpus.push_back(mlvp::ParseDotFile(path));
+          instance_names.push_back(std::filesystem::path(path).filename().string());
         }
       } else {
         corpus = GenerateWorkspaceCorpus(options, workspace_id);
+        for (std::size_t i = 0; i < corpus.size(); ++i) {
+          std::ostringstream name;
+          name << "generated_" << std::setw(4) << std::setfill('0') << i << ".dot";
+          instance_names.push_back(name.str());
+        }
       }
 
       for (std::size_t i = 0; i < corpus.size(); ++i) {
@@ -388,7 +352,8 @@ int main(int argc, char** argv) {
       MaybeSaveCorpus(options.save_root, workspace_id, corpus);
 
       const std::filesystem::path workspace_dir =
-          options.dot_root.empty() ? std::filesystem::path() : WorkspaceDir(options.dot_root, workspace_id);
+          options.dot_root.empty() ? std::filesystem::path()
+                                   : mlvp::WorkspaceDir(options.dot_root, workspace_id);
       const std::filesystem::path platform_path = workspace_dir / "platform.csv";
       const mlvp::Platform platform =
           (!options.dot_root.empty() && std::filesystem::exists(platform_path))
@@ -397,6 +362,7 @@ int main(int argc, char** argv) {
                                         options.seed + static_cast<std::uint32_t>(workspace_id));
 
       for (std::size_t instance_idx = 0; instance_idx < corpus.size(); ++instance_idx) {
+        std::map<std::string, mlvp::SimulationResult> per_instance_results;
         for (std::size_t policy_idx = 0; policy_idx < options.policies.size(); ++policy_idx) {
           mlvp::MlvpConfig config = options.mlvp_config;
           config.seed = options.seed + static_cast<std::uint32_t>(
@@ -405,7 +371,45 @@ int main(int argc, char** argv) {
               mlvp::MakePolicy(options.policies[policy_idx], config);
           mlvp::OnlineSimulator simulator(corpus[instance_idx], platform);
           const mlvp::SimulationResult result = simulator.Run(*policy);
+          const mlvp::ScheduleValidation validation =
+              mlvp::ValidateSimulationResult(corpus[instance_idx], platform, result);
+          if (!validation.valid) {
+            std::ostringstream error;
+            error << "invalid schedule for WS" << workspace_id
+                  << " instance=" << instance_names[instance_idx]
+                  << " policy=" << policy->name() << ": ";
+            for (std::size_t i = 0; i < validation.errors.size(); ++i) {
+              if (i > 0) {
+                error << "; ";
+              }
+              error << validation.errors[i];
+            }
+            throw std::runtime_error(error.str());
+          }
           summary.makespans[policy->name()].push_back(result.makespan);
+          per_instance_results[policy->name()] = result;
+        }
+
+        const auto mlvp_it = per_instance_results.find("mlvp");
+        for (const std::string& policy_name : options.policies) {
+          const mlvp::SimulationResult& result = per_instance_results.at(policy_name);
+          InstanceResultRow row;
+          row.workspace = workspace_id;
+          row.dag_size = summary.dag_size;
+          row.instance = instance_idx;
+          row.instance_name = instance_names[instance_idx];
+          row.policy = policy_name;
+          row.makespan = result.makespan;
+          row.completed_tasks = result.completed_tasks;
+          row.cycles = result.cycles;
+          row.max_ready_width = result.max_ready_width;
+          row.max_visible_width = result.max_visible_width;
+          if (policy_name != "mlvp" && mlvp_it != per_instance_results.end()) {
+            const double denom = result.makespan > 0.0 ? result.makespan : 1.0;
+            row.mlvp_improvement_pct =
+                (result.makespan - mlvp_it->second.makespan) / denom * 100.0;
+          }
+          instance_rows.push_back(std::move(row));
         }
       }
 
@@ -429,6 +433,7 @@ int main(int argc, char** argv) {
     }
 
     WriteCsvSummary(options.summary_csv, summaries, options.policies);
+    WriteInstanceCsv(options.instances_csv, instance_rows);
     WriteJsonSummary(options.summary_json, summaries, options.policies);
     return 0;
   } catch (const std::exception& error) {

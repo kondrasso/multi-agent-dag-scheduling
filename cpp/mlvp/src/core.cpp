@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <cstdio>
 #include <fstream>
+#include <iomanip>
 #include <limits>
 #include <numeric>
 #include <queue>
@@ -312,6 +313,62 @@ void AssignNodeTypes(Dag* dag, TypeAssignmentStrategy strategy, std::uint32_t se
   }
 }
 
+int MlvpDagSizeForWorkspace(int workspace_id) {
+  switch (workspace_id) {
+    case 1:
+      return 3000;
+    case 2:
+      return 6000;
+    case 3:
+      return 12000;
+    case 4:
+      return 24000;
+    default:
+      throw std::invalid_argument("workspace_id must be 1..4 for MLVP");
+  }
+}
+
+std::vector<TopologyClass> MlvpTopologyClasses() {
+  static const std::vector<double> fats = {0.2, 0.5};
+  static const std::vector<double> densities = {0.1, 0.4, 0.8};
+  static const std::vector<double> regularities = {0.2, 0.8};
+  static const std::vector<int> jumps = {2, 4};
+  static const std::vector<int> ccr_values = {2, 8};
+
+  std::vector<TopologyClass> classes;
+  classes.reserve(fats.size() * densities.size() * regularities.size() *
+                  jumps.size() * ccr_values.size());
+  for (double fat : fats) {
+    for (double density : densities) {
+      for (double regularity : regularities) {
+        for (int jump : jumps) {
+          for (int ccr : ccr_values) {
+            classes.push_back(TopologyClass{fat, density, regularity, jump, ccr});
+          }
+        }
+      }
+    }
+  }
+  return classes;
+}
+
+std::string TopologyClassKey(const TopologyClass& topology) {
+  auto code_tenths = [](double value) {
+    std::ostringstream code;
+    code << std::setw(2) << std::setfill('0')
+         << static_cast<int>(std::lround(value * 10.0));
+    return code.str();
+  };
+
+  std::ostringstream key;
+  key << "f" << code_tenths(topology.fat)
+      << "_d" << code_tenths(topology.density)
+      << "_r" << code_tenths(topology.regularity)
+      << "_j" << topology.jump
+      << "_c" << topology.ccr;
+  return key.str();
+}
+
 std::string GenerateDaggenDot(const DaggenParams& params) {
   char temp_path[] = "/tmp/mlvp_dagXXXXXX.dot";
   const int fd = mkstemps(temp_path, 4);
@@ -333,8 +390,11 @@ std::string GenerateDaggenDot(const DaggenParams& params) {
           << " --minalpha " << params.minalpha
           << " --maxalpha " << params.maxalpha
           << " --mindata " << params.mindata
-          << " --maxdata " << params.maxdata
-          << " >/dev/null 2>&1";
+          << " --maxdata " << params.maxdata;
+  if (params.use_seed) {
+    command << " --seed " << params.seed;
+  }
+  command << " >/dev/null 2>&1";
 
   const int status = std::system(command.str().c_str());
   if (status != 0) {
@@ -778,6 +838,112 @@ std::unique_ptr<SchedulingPolicy> MakePolicy(const std::string& name, const Mlvp
   throw std::invalid_argument("Unknown policy: " + name);
 }
 
+ScheduleValidation ValidateSimulationResult(
+    const Dag& dag, const Platform& platform, const SimulationResult& result) {
+  ScheduleValidation validation;
+  auto fail = [&](const std::string& message) {
+    validation.valid = false;
+    validation.errors.push_back(message);
+  };
+
+  if (result.completed_tasks != dag.size()) {
+    fail("completed task count does not match DAG size");
+  }
+  if (result.task_executor_ids.size() != dag.size() ||
+      result.task_start_times.size() != dag.size() ||
+      result.task_finish_times.size() != dag.size()) {
+    fail("result vector sizes do not match DAG size");
+    return validation;
+  }
+
+  std::unordered_map<int, std::size_t> executor_by_id;
+  for (std::size_t executor_index = 0; executor_index < platform.size(); ++executor_index) {
+    executor_by_id[platform.executor(executor_index).id] = executor_index;
+  }
+
+  struct Interval {
+    double start = 0.0;
+    double finish = 0.0;
+    std::size_t task_index = 0;
+  };
+  std::vector<std::vector<Interval>> executor_intervals(platform.size());
+  std::vector<std::size_t> task_executor_indices(dag.size(), kInvalidIndex);
+
+  for (std::size_t task_index = 0; task_index < dag.size(); ++task_index) {
+    const int executor_id = result.task_executor_ids[task_index];
+    const auto executor_it = executor_by_id.find(executor_id);
+    if (executor_it == executor_by_id.end()) {
+      fail("task " + std::to_string(dag.task(task_index).id) +
+           " is assigned to an unknown executor");
+      continue;
+    }
+
+    const std::size_t executor_index = executor_it->second;
+    const Executor& executor = platform.executor(executor_index);
+    task_executor_indices[task_index] = executor_index;
+    if (dag.task(task_index).type != executor.type) {
+      fail("task " + std::to_string(dag.task(task_index).id) +
+           " is assigned to an incompatible executor");
+    }
+
+    const double start = result.task_start_times[task_index];
+    const double finish = result.task_finish_times[task_index];
+    if (!std::isfinite(start) || !std::isfinite(finish) || start < -kEps ||
+        finish < start - kEps) {
+      fail("task " + std::to_string(dag.task(task_index).id) +
+           " has invalid start/finish times");
+      continue;
+    }
+
+    const double expected_duration = executor.ProcessingTime(dag.task(task_index).compute_cost);
+    if (finish + kEps < start + expected_duration) {
+      fail("task " + std::to_string(dag.task(task_index).id) +
+           " finishes before its processing time elapses");
+    }
+    executor_intervals[executor_index].push_back(Interval{start, finish, task_index});
+  }
+
+  for (std::size_t task_index = 0; task_index < dag.size(); ++task_index) {
+    if (task_executor_indices[task_index] == kInvalidIndex) {
+      continue;
+    }
+    const double start = result.task_start_times[task_index];
+    for (const PredecessorEdge& edge : dag.task(task_index).preds) {
+      if (task_executor_indices[edge.src] == kInvalidIndex) {
+        continue;
+      }
+      double ready_time = result.task_finish_times[edge.src];
+      if (task_executor_indices[edge.src] != task_executor_indices[task_index]) {
+        ready_time += edge.comm_cost / kBandwidthBytesPerSecond;
+      }
+      if (start + kEps < ready_time) {
+        fail("task " + std::to_string(dag.task(task_index).id) +
+             " starts before predecessor communication readiness");
+      }
+    }
+  }
+
+  for (std::size_t executor_index = 0; executor_index < executor_intervals.size();
+       ++executor_index) {
+    std::vector<Interval>& intervals = executor_intervals[executor_index];
+    std::sort(intervals.begin(), intervals.end(),
+              [](const Interval& lhs, const Interval& rhs) {
+                if (std::fabs(lhs.start - rhs.start) > kEps) {
+                  return lhs.start < rhs.start;
+                }
+                return lhs.task_index < rhs.task_index;
+              });
+    for (std::size_t i = 1; i < intervals.size(); ++i) {
+      if (intervals[i].start + kEps < intervals[i - 1].finish) {
+        fail("executor " + std::to_string(platform.executor(executor_index).id) +
+             " has overlapping task intervals");
+      }
+    }
+  }
+
+  return validation;
+}
+
 OnlineSimulator::OnlineSimulator(Dag dag, Platform platform)
     : dag_(std::move(dag)), platform_(std::move(platform)) {}
 
@@ -791,7 +957,7 @@ SimulationResult OnlineSimulator::Run(const SchedulingPolicy& policy) {
                                       });
     if (ready_tasks_.empty() || !has_idle) {
       if (!AdvanceToNextEvent()) {
-        break;
+        throw std::runtime_error("MLVP simulation deadlocked before all tasks finished");
       }
       continue;
     }
@@ -802,7 +968,7 @@ SimulationResult OnlineSimulator::Run(const SchedulingPolicy& policy) {
 
     if (assignments.empty()) {
       if (!AdvanceToNextEvent()) {
-        break;
+        throw std::runtime_error("MLVP simulation deadlocked with no feasible assignment");
       }
       continue;
     }
@@ -812,13 +978,19 @@ SimulationResult OnlineSimulator::Run(const SchedulingPolicy& policy) {
     }
 
     if (!AdvanceToNextEvent() && finished_tasks_ < dag_.size()) {
-      break;
+      throw std::runtime_error("MLVP simulation deadlocked after committing tasks");
     }
+  }
+
+  if (finished_tasks_ != dag_.size()) {
+    throw std::runtime_error("MLVP simulation ended with unfinished tasks");
   }
 
   SimulationResult result;
   result.completed_tasks = finished_tasks_;
   result.cycles = cycles_;
+  result.max_ready_width = max_ready_width_;
+  result.max_visible_width = max_visible_width_;
   result.task_executor_ids.resize(dag_.size(), -1);
   result.task_start_times.resize(dag_.size(), 0.0);
   result.task_finish_times.resize(dag_.size(), 0.0);
@@ -943,6 +1115,8 @@ void OnlineSimulator::ResetRuntime() {
   finished_tasks_ = 0;
   cycles_ = 0;
   ready_sequence_ = 0;
+  max_ready_width_ = 0;
+  max_visible_width_ = 0;
   runtime_.assign(dag_.size(), TaskRuntimeState{});
   ready_tasks_.clear();
   executor_available_.assign(platform_.size(), 0.0);
@@ -965,6 +1139,7 @@ void OnlineSimulator::MarkTaskReady(std::size_t task_index, double ready_time) {
   state.ready_sequence = ready_sequence_++;
   ready_tasks_.push_back(task_index);
   InvalidateWindowCache();
+  RefreshWindowStats();
 }
 
 bool OnlineSimulator::AdvanceToNextEvent() {
@@ -987,6 +1162,7 @@ bool OnlineSimulator::AdvanceToNextEvent() {
   }
 
   UpdateReadyTasks(completed_tasks);
+  RefreshWindowStats();
   return true;
 }
 
@@ -1016,6 +1192,14 @@ void OnlineSimulator::UpdateReadyTasks(const std::vector<std::size_t>& completed
       MarkTaskReady(task_index, current_time_);
     }
   }
+}
+
+void OnlineSimulator::RefreshWindowStats() {
+  max_ready_width_ = std::max(max_ready_width_, ready_tasks_.size());
+  RebuildWindowCache();
+  const std::size_t visible_width =
+      static_cast<std::size_t>(std::count(visible_mask_.begin(), visible_mask_.end(), true));
+  max_visible_width_ = std::max(max_visible_width_, visible_width);
 }
 
 OnlineSimulator::AssignmentEstimate OnlineSimulator::EstimateAssignment(
@@ -1082,6 +1266,7 @@ void OnlineSimulator::CommitTask(std::size_t executor_index, std::size_t task_in
 
   events_.push(Event{estimate.finish_time, executor_index, task_index});
   InvalidateWindowCache();
+  RefreshWindowStats();
 }
 
 std::vector<std::pair<std::size_t, std::size_t>> OnlineSimulator::ResolveAssignments(

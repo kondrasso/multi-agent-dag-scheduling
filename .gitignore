@@ -1,7 +1,19 @@
 __pycache__/
 *.py[cod]
+*.pyo
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
 
 .DS_Store
+.codex
+.codex/
+.venv/
 gurobi.log
+results/
 
 cpp/mlvp/build/
+cpp/mlvp/runs/
+
+# Local thesis source drop; keep it available for reference but never commit it here.
+phd_thesis_spbu_format_en*/

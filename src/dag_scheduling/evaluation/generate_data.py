@@ -5,10 +5,10 @@ Running this once saves time on repeated training runs by eliminating
 daggen subprocess overhead and DAG construction from every training call.
 
 Small-scale corpus layout (saved under --data_dir):
-  train_marl_ws{ws}_n{n}.pkl  72 DAGs  (24 classes × 3)   ws=1-3, n=30/60/90
-  train_nn_ws{ws}_n{n}.pkl    144 DAGs (48 classes × 3)   ws=1-3, n=30/60/90
-  train_mcts_ws{ws}_n{n}.pkl  144 DAGs (48 classes × 3)   ws=1-3, n=30/60/90
-  test_ws{ws}_n{n}.pkl        480 DAGs (48 classes × 10)  ws=1-3, n=30/60/90
+  train_marl_ws{ws}_n{n}.pkl  72 DAGs  (24 classes × 3, fat=0.5)
+  train_nn_ws{ws}_n{n}.pkl    72 DAGs  (24 classes × 3, fat=0.5)
+  train_mcts_ws{ws}_n{n}.pkl  144 DAGs (48 classes × 3, fat∈{0.2,0.5})
+  test_ws{ws}_n{n}.pkl        480 DAGs (48 classes × 10, fat∈{0.2,0.5})
 
 Large-scale corpus layout (NN, --large flag):
   train_nn_large_ws{ws}.pkl   3000 DAGs   ws=4-9
@@ -53,7 +53,7 @@ _WS_VALUES = list(SMALL_WORKSPACES)
 _N_VALUES = list(OFFLINE_DAG_SIZES)
 _LARGE_WS = list(LARGE_WORKSPACES)
 _MARL_TRAIN_COUNT = len(MARL_TOPOLOGIES) * TRAIN_PER_CLASS
-_NN_TRAIN_COUNT = len(FULL_TOPOLOGIES) * TRAIN_PER_CLASS
+_NN_TRAIN_COUNT = len(MARL_TOPOLOGIES) * TRAIN_PER_CLASS    # NN uses the same 24-class subset as MARL
 _MCTS_TRAIN_COUNT = len(FULL_TOPOLOGIES) * TRAIN_PER_CLASS
 _TEST_COUNT = len(FULL_TOPOLOGIES) * TEST_PER_CLASS
 

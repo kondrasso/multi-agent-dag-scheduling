@@ -145,12 +145,18 @@ def make_nn_training_corpus(
     seed_offset: int = 0,
     type_strategy: NodeTypeStrategy = "random",
 ) -> Corpus:
-    """NN training corpus: 48 topology classes (fat ∈ {0.2, 0.5})."""
+    """NN training corpus: 24 topology classes (fat=0.5), matching MARL training.
+
+    Both MARL and NN are trained on the fat=0.5 subset and evaluated on the
+    full 48-class test corpus produced by ``make_test_corpus``. MCTS is the
+    only offline method that trains on the full 48-class grid (see
+    ``make_mcts_training_corpus``).
+    """
     return generate_topology_corpus(
         n=n,
         ws=ws,
         n_per_class=n_per_class,
-        topologies=FULL_TOPOLOGIES,
+        topologies=MARL_TOPOLOGIES,
         seed_offset=seed_offset,
         type_strategy=type_strategy,
     )

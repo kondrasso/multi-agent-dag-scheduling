@@ -22,7 +22,7 @@ import ray
 from ray.rllib.algorithms.ppo import PPOConfig
 
 from dag_scheduling.env.offline_env import OfflineSchedulingEnv, AGENT_IDS
-from dag_scheduling.protocol import TEST_PER_CLASS, TRAIN_PER_CLASS, make_nn_training_corpus
+from dag_scheduling.protocol import TEST_PER_CLASS, TRAIN_PER_CLASS, make_marl_training_corpus
 
 N_TRAIN_PER_CLASS = TRAIN_PER_CLASS   # 24 classes x 3 = 72 training DAGs
 N_TEST_PER_CLASS = TEST_PER_CLASS * 2  # 24 classes x 20 = 480 test DAGs
@@ -30,7 +30,7 @@ N_TEST_PER_CLASS = TEST_PER_CLASS * 2  # 24 classes x 20 = 480 test DAGs
 
 def make_corpus(n: int, ws: int, n_per_class: int, seed_offset: int = 0):
     """Generate a corpus of (dag, platform) pairs covering all topology classes."""
-    return make_nn_training_corpus(
+    return make_marl_training_corpus(
         n=n,
         ws=ws,
         n_per_class=n_per_class,

@@ -3,7 +3,7 @@ import unittest
 from dag_scheduling.core.dag import SchedulingDAG
 from dag_scheduling.protocol import (
     FULL_TOPOLOGIES,
-    NN_TOPOLOGIES,
+    MARL_TOPOLOGIES,
     TEST_PER_CLASS,
     TRAIN_PER_CLASS,
     assign_node_types,
@@ -13,8 +13,8 @@ from dag_scheduling.protocol import (
 
 class ProtocolTests(unittest.TestCase):
     def test_topology_grid_sizes_match_protocol(self):
-        self.assertEqual(len(NN_TOPOLOGIES), 24)
-        self.assertEqual(len(FULL_TOPOLOGIES), 48)
+        self.assertEqual(len(MARL_TOPOLOGIES), 24)   # MARL: fat=0.5 fixed
+        self.assertEqual(len(FULL_TOPOLOGIES), 48)   # NN, MCTS, test corpora
         self.assertEqual(TRAIN_PER_CLASS, 3)
         self.assertEqual(TEST_PER_CLASS, 10)
 

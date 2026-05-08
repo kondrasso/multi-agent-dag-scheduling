@@ -5,7 +5,8 @@ Running this once saves time on repeated training runs by eliminating
 daggen subprocess overhead and DAG construction from every training call.
 
 Small-scale corpus layout (saved under --data_dir):
-  train_nn_ws{ws}_n{n}.pkl    72 DAGs  (24 classes × 3)   ws=1-3, n=30/60/90
+  train_marl_ws{ws}_n{n}.pkl  72 DAGs  (24 classes × 3)   ws=1-3, n=30/60/90
+  train_nn_ws{ws}_n{n}.pkl    144 DAGs (48 classes × 3)   ws=1-3, n=30/60/90
   train_mcts_ws{ws}_n{n}.pkl  144 DAGs (48 classes × 3)   ws=1-3, n=30/60/90
   test_ws{ws}_n{n}.pkl        480 DAGs (48 classes × 10)  ws=1-3, n=30/60/90
 
@@ -35,13 +36,14 @@ from dag_scheduling.protocol import (
     LARGE_TRAIN_SEED,
     LARGE_WORKSPACES,
     FULL_TOPOLOGIES,
-    NN_TOPOLOGIES,
+    MARL_TOPOLOGIES,
     OFFLINE_DAG_SIZES,
     SMALL_WORKSPACES,
     TEST_PER_CLASS,
     TRAIN_PER_CLASS,
     LARGE_SCALE_N,
     make_large_random_corpus,
+    make_marl_training_corpus,
     make_mcts_training_corpus,
     make_nn_training_corpus,
     make_test_corpus,
@@ -50,7 +52,8 @@ from dag_scheduling.protocol import (
 _WS_VALUES = list(SMALL_WORKSPACES)
 _N_VALUES = list(OFFLINE_DAG_SIZES)
 _LARGE_WS = list(LARGE_WORKSPACES)
-_NN_TRAIN_COUNT = len(NN_TOPOLOGIES) * TRAIN_PER_CLASS
+_MARL_TRAIN_COUNT = len(MARL_TOPOLOGIES) * TRAIN_PER_CLASS
+_NN_TRAIN_COUNT = len(FULL_TOPOLOGIES) * TRAIN_PER_CLASS
 _MCTS_TRAIN_COUNT = len(FULL_TOPOLOGIES) * TRAIN_PER_CLASS
 _TEST_COUNT = len(FULL_TOPOLOGIES) * TEST_PER_CLASS
 
@@ -75,6 +78,10 @@ def generate_all(
 
     for ws in ws_values:
         for n in n_values:
+            _save(out / f"train_marl_ws{ws}_n{n}.pkl",
+                  lambda ws=ws, n=n: make_marl_training_corpus(n=n, ws=ws),
+                  f"train MARL ws={ws} n={n} ({_MARL_TRAIN_COUNT} DAGs)", overwrite)
+
             _save(out / f"train_nn_ws{ws}_n{n}.pkl",
                   lambda ws=ws, n=n: make_nn_training_corpus(n=n, ws=ws),
                   f"train NN   ws={ws} n={n} ({_NN_TRAIN_COUNT} DAGs)", overwrite)

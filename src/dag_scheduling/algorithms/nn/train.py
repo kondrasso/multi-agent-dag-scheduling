@@ -10,7 +10,7 @@ GA configuration:
   elitism:     yes
   fitness:     -mean(makespan) over training corpus
 
-Training corpus: 3 instances per topology class × 24 classes = 72 DAGs per n.
+Training corpus: 3 instances per topology class × 48 classes = 144 DAGs per n.
 
 Usage:
   uv run python -m dag_scheduling.algorithms.nn.train \

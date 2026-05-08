@@ -22,7 +22,7 @@ OFFLINE_DAG_SIZES = (30, 60, 90)
 LARGE_WORKSPACES = (4, 5, 6, 7, 8, 9)
 
 FAT_VALUES = (0.2, 0.5)
-NN_FAT_VALUES = (0.5,)
+MARL_FAT_VALUES = (0.5,)
 DENSITY_VALUES = (0.1, 0.4, 0.8)
 REGULARITY_VALUES = (0.2, 0.8)
 JUMP_VALUES = (2, 4)
@@ -70,7 +70,7 @@ def topology_grid(fat_values: Sequence[float] = FAT_VALUES) -> list[Topology]:
     ]
 
 
-NN_TOPOLOGIES = tuple(topology_grid(NN_FAT_VALUES))
+MARL_TOPOLOGIES = tuple(topology_grid(MARL_FAT_VALUES))
 FULL_TOPOLOGIES = tuple(topology_grid(FAT_VALUES))
 
 
@@ -120,6 +120,24 @@ def generate_topology_corpus(
     return corpus
 
 
+def make_marl_training_corpus(
+    n: int,
+    ws: int,
+    n_per_class: int = TRAIN_PER_CLASS,
+    seed_offset: int = 0,
+    type_strategy: NodeTypeStrategy = "random",
+) -> Corpus:
+    """MARL training corpus: 24 topology classes (fat=0.5 fixed)."""
+    return generate_topology_corpus(
+        n=n,
+        ws=ws,
+        n_per_class=n_per_class,
+        topologies=MARL_TOPOLOGIES,
+        seed_offset=seed_offset,
+        type_strategy=type_strategy,
+    )
+
+
 def make_nn_training_corpus(
     n: int,
     ws: int,
@@ -127,11 +145,12 @@ def make_nn_training_corpus(
     seed_offset: int = 0,
     type_strategy: NodeTypeStrategy = "random",
 ) -> Corpus:
+    """NN training corpus: 48 topology classes (fat ∈ {0.2, 0.5})."""
     return generate_topology_corpus(
         n=n,
         ws=ws,
         n_per_class=n_per_class,
-        topologies=NN_TOPOLOGIES,
+        topologies=FULL_TOPOLOGIES,
         seed_offset=seed_offset,
         type_strategy=type_strategy,
     )
@@ -144,6 +163,7 @@ def make_mcts_training_corpus(
     seed_offset: int = 0,
     type_strategy: NodeTypeStrategy = "random",
 ) -> Corpus:
+    """MCTS training corpus: 48 topology classes (fat ∈ {0.2, 0.5})."""
     return generate_topology_corpus(
         n=n,
         ws=ws,

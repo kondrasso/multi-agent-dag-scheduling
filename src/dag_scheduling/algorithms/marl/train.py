@@ -22,10 +22,13 @@ import ray
 from ray.rllib.algorithms.ppo import PPOConfig
 
 from dag_scheduling.env.offline_env import OfflineSchedulingEnv, AGENT_IDS
-from dag_scheduling.protocol import TEST_PER_CLASS, TRAIN_PER_CLASS, make_marl_training_corpus
+from dag_scheduling.protocol import TRAIN_PER_CLASS, make_marl_training_corpus
 
-N_TRAIN_PER_CLASS = TRAIN_PER_CLASS   # 24 classes x 3 = 72 training DAGs
-N_TEST_PER_CLASS = TEST_PER_CLASS * 2  # 24 classes x 20 = 480 test DAGs
+# MARL training: 24 topology classes (fat=0.5 fixed) × 3 = 72 DAGs per n.
+# MARL evaluation: standard test corpus from make_test_corpus, which uses
+# 48 topology classes × 10 = 480 DAGs per n. Training therefore covers a
+# subset of the test distribution (the fat=0.5 half).
+N_TRAIN_PER_CLASS = TRAIN_PER_CLASS
 
 
 def make_corpus(n: int, ws: int, n_per_class: int, seed_offset: int = 0):

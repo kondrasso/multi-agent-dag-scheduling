@@ -25,10 +25,9 @@ from ray.rllib.algorithms.ppo import PPOConfig
 from dag_scheduling.env.offline_env import OfflineSchedulingEnv, AGENT_IDS
 from dag_scheduling.protocol import TRAIN_PER_CLASS, make_marl_training_corpus
 
-# MARL training: 24 topology classes (fat=0.5 fixed) × 3 = 72 DAGs per n.
-# MARL evaluation: standard test corpus from make_test_corpus, which uses
-# 48 topology classes × 10 = 480 DAGs per n. Training therefore covers a
-# subset of the test distribution (the fat=0.5 half).
+# MARL training follows the original paper: fat=0.5 fixed, 24 topology
+# classes x 3 instances = 72 DAGs per n. Thesis evaluation uses the larger
+# full-grid 48-class test corpus separately.
 N_TRAIN_PER_CLASS = TRAIN_PER_CLASS
 
 

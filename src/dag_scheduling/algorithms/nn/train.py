@@ -10,9 +10,8 @@ GA configuration:
   elitism:     yes
   fitness:     -mean(makespan) over training corpus
 
-Training corpus: 3 instances per topology class × 24 classes = 72 DAGs per n
-(same fat=0.5 subset used by MARL training; test corpus is the full 48
-classes).
+Training corpus: 3 instances per topology class × 48 classes = 144 DAGs per n
+(canonical MCTS/NN paper regime).
 
 Usage:
   uv run python -m dag_scheduling.algorithms.nn.train \

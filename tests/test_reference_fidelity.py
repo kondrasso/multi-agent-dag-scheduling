@@ -8,9 +8,21 @@ from dag_scheduling.baselines.heuristics import _schedule_greedy
 from dag_scheduling.core.dag import SchedulingDAG
 from dag_scheduling.core.platform import Executor, Platform
 from dag_scheduling.core.simulator import ScheduleState
+from dag_scheduling.protocol import (
+    FULL_TOPOLOGIES,
+    MARL_TOPOLOGIES,
+    TEST_PER_CLASS,
+    TRAIN_PER_CLASS,
+)
 
 
 class ReferenceFidelityTests(unittest.TestCase):
+    def test_marl_training_uses_paper_subset_and_test_uses_full_grid(self):
+        self.assertEqual(len(MARL_TOPOLOGIES), 24)
+        self.assertEqual(len(FULL_TOPOLOGIES), 48)
+        self.assertEqual(len(MARL_TOPOLOGIES) * TRAIN_PER_CLASS, 72)
+        self.assertEqual(len(FULL_TOPOLOGIES) * TEST_PER_CLASS, 480)
+
     def test_mcts_simulation_backs_up_completed_rollout_makespan(self):
         dag = SchedulingDAG()
         dag.add_task(1, 26_000_000_000.0, 0.1, "CPU")

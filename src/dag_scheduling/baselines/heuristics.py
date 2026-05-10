@@ -4,18 +4,19 @@ Offline DAG scheduling baselines.
 All five heuristics follow the same schedule-construction loop:
   1. prioritise ready tasks using a method-specific rule
   2. select the top task
-  3. assign to a compatible executor using EFT (or CP-processor for CPOP)
+  3. assign to a compatible executor using the method-specific placement rule
   4. commit and update ready set
 
-Insertion-based EFT (HPS, PETS) is not implemented; standard EFT is used
-for all methods, consistent with the non-insertion variant used by DONF/CPOP.
+HPS and PETS use insertion-aware EFT placement: if an already-built executor
+timeline has an idle gap large enough for the selected task after its data-ready
+time, the task can be inserted into that gap.
 
 Returns makespan (float).
 """
 
 from __future__ import annotations
+from dataclasses import dataclass
 import math
-import numpy as np
 
 from dag_scheduling.core.dag import SchedulingDAG
 from dag_scheduling.core.platform import Platform, BANDWIDTH
@@ -25,6 +26,14 @@ from dag_scheduling.core.simulator import ScheduleState
 # ------------------------------------------------------------------
 # shared helpers
 # ------------------------------------------------------------------
+
+PriorityValue = float | tuple[float, ...]
+
+
+@dataclass(frozen=True)
+class _Interval:
+    start: float
+    finish: float
 
 def _avg_proc(dag: SchedulingDAG, idx: int, platform: Platform) -> float:
     """Average processing time over compatible executors (w_bar)."""
@@ -72,15 +81,108 @@ def _downward_rank(dag: SchedulingDAG, platform: Platform) -> dict[int, float]:
     return rank
 
 
-def _schedule_greedy(dag: SchedulingDAG, platform: Platform,
-                     priority: dict[int, float]) -> float:
-    """Generic greedy scheduler: highest priority ready task → EFT placement."""
+def _data_ready_time(
+    dag: SchedulingDAG,
+    task_idx: int,
+    executor_id: int,
+    state: ScheduleState,
+) -> float:
+    """Latest predecessor finish plus transfer delay for one executor."""
+    data_ready = 0.0
+    for pred_idx in dag.predecessors(task_idx):
+        pred_aft = state.aft.get(pred_idx)
+        if pred_aft is None:
+            return math.inf
+        delta = (
+            0.0 if state.assigned.get(pred_idx) == executor_id
+            else _comm_time(dag.comm_cost(pred_idx, task_idx))
+        )
+        data_ready = max(data_ready, pred_aft + delta)
+    return data_ready
+
+
+def _find_insertion_slot(
+    dag: SchedulingDAG,
+    platform: Platform,
+    task_idx: int,
+    executor_id: int,
+    state: ScheduleState,
+    intervals: dict[int, list[_Interval]],
+) -> tuple[float, float]:
+    """Earliest feasible non-overlapping slot on an executor timeline."""
+    exc = platform.by_id(executor_id)
+    duration = exc.processing_time(dag.compute_cost(task_idx))
+    start = _data_ready_time(dag, task_idx, executor_id, state)
+    if not math.isfinite(start):
+        return math.inf, math.inf
+
+    for interval in intervals.get(executor_id, []):
+        finish = start + duration
+        if finish <= interval.start + 1e-12:
+            return start, finish
+        start = max(start, interval.finish)
+    return start, start + duration
+
+
+def _insertion_place(
+    dag: SchedulingDAG,
+    platform: Platform,
+    task_idx: int,
+    state: ScheduleState,
+    intervals: dict[int, list[_Interval]],
+) -> tuple[int, float, float]:
+    """Insertion-based EFT placement over compatible executors."""
+    candidates = platform.compatible(dag.node_type(task_idx))
+    if not candidates:
+        raise ValueError(f"No executor of type {dag.node_type(task_idx)!r} in platform")
+
+    best: tuple[float, float, int] | None = None
+    for exc in candidates:
+        start, finish = _find_insertion_slot(dag, platform, task_idx, exc.id, state, intervals)
+        candidate = (finish, start, exc.id)
+        if best is None or candidate < best:
+            best = candidate
+
+    assert best is not None
+    finish, start, executor_id = best
+    return executor_id, start, finish
+
+
+def _commit_with_interval(
+    state: ScheduleState,
+    intervals: dict[int, list[_Interval]],
+    task_idx: int,
+    executor_id: int,
+    start: float,
+    finish: float,
+) -> None:
+    """Commit an insertion placement while preserving executor tail time."""
+    previous_tail = state.executor_available.get(executor_id, 0.0)
+    state.commit(task_idx, executor_id, start, finish)
+    state.executor_available[executor_id] = max(previous_tail, finish)
+    intervals.setdefault(executor_id, []).append(_Interval(start, finish))
+    intervals[executor_id].sort(key=lambda item: (item.start, item.finish))
+
+
+def _schedule_greedy(
+    dag: SchedulingDAG,
+    platform: Platform,
+    priority: dict[int, PriorityValue],
+    *,
+    insertion: bool = False,
+) -> float:
+    """Generic greedy scheduler: highest priority ready task, then placement."""
     state = ScheduleState(dag, platform)
+    intervals: dict[int, list[_Interval]] = {e.id: [] for e in platform.executors}
     while not state.is_done():
         if not state.ready:
             break
         task = max(state.ready, key=lambda t: priority[t])
-        state.schedule_task(task)
+        if insertion:
+            exc_id, start, finish = _insertion_place(dag, platform, task, state, intervals)
+            _commit_with_interval(state, intervals, task, exc_id, start, finish)
+        else:
+            state.schedule_task(task)
     return state.makespan
 
 
@@ -171,37 +273,85 @@ def cpop(dag: SchedulingDAG, platform: Platform) -> float:
 
 # ------------------------------------------------------------------
 # HCPT  (Heterogeneous Critical Parent Trees)
-# The protocol gives a high-level description referencing [a0].
-# Priority approximated by upward rank (most critical = highest rank_u),
-# with EFT placement — faithful to the "criticality" intent described.
+# Critical parent is the predecessor that determines the average earliest start;
+# ready tasks are prioritised by low slack, then by larger critical-parent-tree
+# subtree size and upward rank.
 # ------------------------------------------------------------------
 
 def hcpt(dag: SchedulingDAG, platform: Platform) -> float:
     """
-    HCPT — approximated by upward-rank priority with EFT placement.
-    (Exact critical-parent-tree construction follows [a0], not reproduced here.)
+    HCPT-style critical-parent-tree priority with EFT placement.
+
+    The thesis describes HCPT at the level of critical parent trees plus
+    start-time criticality. This implementation makes those quantities explicit
+    using average processing/communication times: AEST/ALST slack gives the
+    primary criticality signal, and critical-parent subtree size breaks ties.
     """
-    priority = _upward_rank(dag, platform)
+    topo = dag.topological_order()
+    avg_proc = {idx: _avg_proc(dag, idx, platform) for idx in dag.indices()}
+
+    aest: dict[int, float] = {}
+    critical_parent: dict[int, int | None] = {}
+    for idx in topo:
+        preds = dag.predecessors(idx)
+        if not preds:
+            aest[idx] = 0.0
+            critical_parent[idx] = None
+            continue
+        parent = max(
+            preds,
+            key=lambda p: aest[p] + avg_proc[p] + _comm_time(dag.comm_cost(p, idx)),
+        )
+        critical_parent[idx] = parent
+        aest[idx] = aest[parent] + avg_proc[parent] + _comm_time(dag.comm_cost(parent, idx))
+
+    exits = dag.exit_nodes()
+    project_length = max((aest[idx] + avg_proc[idx] for idx in exits), default=0.0)
+
+    alst: dict[int, float] = {}
+    for idx in reversed(topo):
+        succs = dag.successors(idx)
+        if not succs:
+            alst[idx] = project_length - avg_proc[idx]
+        else:
+            alst[idx] = min(
+                alst[s] - _comm_time(dag.comm_cost(idx, s)) - avg_proc[idx]
+                for s in succs
+            )
+
+    children: dict[int, list[int]] = {idx: [] for idx in dag.indices()}
+    for child, parent in critical_parent.items():
+        if parent is not None:
+            children[parent].append(child)
+
+    subtree_size = {idx: 1 for idx in dag.indices()}
+    for idx in reversed(topo):
+        subtree_size[idx] = 1 + sum(subtree_size[child] for child in children[idx])
+
+    rank_u = _upward_rank(dag, platform)
+    priority: dict[int, PriorityValue] = {}
+    for idx in dag.indices():
+        slack = max(0.0, alst[idx] - aest[idx])
+        priority[idx] = (-slack, float(subtree_size[idx]), rank_u[idx])
     return _schedule_greedy(dag, platform, priority)
 
 
 # ------------------------------------------------------------------
 # HPS  (High-Performance Task Scheduling)
-# Priority = Up Link Cost (TW_out); ties broken by Down Link Cost (TW_in).
-# EFT placement (insertion variant not implemented).
+# Priority = Up Link Cost (TW_out) + Down Link Cost (TW_in).
+# Insertion-aware EFT placement.
 # ------------------------------------------------------------------
 
 def hps(dag: SchedulingDAG, platform: Platform) -> float:
     """
-    HPS — link-based priority: ULC = TW_out (primary), DLC = TW_in (secondary).
+    HPS — link-based priority with insertion-aware EFT placement.
     """
     priority = {}
     for idx in dag.indices():
         ulc = sum(_comm_time(dag.comm_cost(idx, s)) for s in dag.successors(idx))
         dlc = sum(_comm_time(dag.comm_cost(p, idx)) for p in dag.predecessors(idx))
-        # encode (ulc, dlc) as a single float for max() comparison
-        priority[idx] = ulc + dlc * 1e-9
-    return _schedule_greedy(dag, platform, priority)
+        priority[idx] = ulc + dlc
+    return _schedule_greedy(dag, platform, priority, insertion=True)
 
 
 # ------------------------------------------------------------------
@@ -209,12 +359,12 @@ def hps(dag: SchedulingDAG, platform: Platform) -> float:
 # priority = ACC + DTC + RPT
 # ACC = avg processing time; DTC = sum comm to successors;
 # RPT = max over pred of (RPT(pred) + ACC(pred) + b_{pred,v})
-# EFT placement (insertion variant not implemented).
+# Insertion-aware EFT placement.
 # ------------------------------------------------------------------
 
 def pets(dag: SchedulingDAG, platform: Platform) -> float:
     """
-    PETS — priority = ACC(vi) + DTC(vi) + RPT(vi).
+    PETS — priority = ACC(vi) + DTC(vi) + RPT(vi), insertion-aware placement.
     """
     topo = dag.topological_order()
 
@@ -237,7 +387,7 @@ def pets(dag: SchedulingDAG, platform: Platform) -> float:
             )
 
     priority = {idx: acc[idx] + dtc[idx] + rpt[idx] for idx in dag.indices()}
-    return _schedule_greedy(dag, platform, priority)
+    return _schedule_greedy(dag, platform, priority, insertion=True)
 
 
 # ------------------------------------------------------------------

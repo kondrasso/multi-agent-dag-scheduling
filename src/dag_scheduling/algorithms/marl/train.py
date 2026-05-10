@@ -6,6 +6,7 @@ Protocol hyperparameters:
   Algorithm:  PPO (independent, no parameter sharing)
   gamma:      1.0  (finite-horizon, sparse terminal reward)
   lr:         2e-5 (Adam)
+  PPO:        1 epoch/update, clip=0.2, vf_loss_coeff=1.0, entropy_coeff=0.01
   iterations: 350_000
   rollouts/iter: 4 episodes
 
@@ -81,6 +82,10 @@ def build_config(ws: int, n: int, iters: int, num_gpus: int = 0) -> PPOConfig:
         .training(
             gamma=1.0,          # finite-horizon, sparse terminal reward
             lr=2e-5,
+            num_epochs=1,
+            clip_param=0.2,
+            vf_loss_coeff=1.0,
+            entropy_coeff=0.01,
             # 4 trajectories per iteration.
             train_batch_size_per_learner=4,
             minibatch_size=4,

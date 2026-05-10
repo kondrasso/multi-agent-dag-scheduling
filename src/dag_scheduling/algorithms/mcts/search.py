@@ -87,9 +87,11 @@ def _simulate(node: "_Node", metrics: np.ndarray,
         def prio(t, _state):
             s = score_tasks([t], metrics, weights)
             return float(s[0])
-        state.greedy_rollout(priority_fn=prio)
+        makespan = state.greedy_rollout(priority_fn=prio)
+    else:
+        makespan = state.makespan
 
-    return -state.makespan
+    return -makespan
 
 
 def mcts_select(

@@ -14,6 +14,7 @@
 namespace mlvp {
 
 constexpr double kBandwidthBytesPerSecond = 1085e6;
+constexpr std::uint32_t kDefaultSeed = 42;
 
 enum class NodeType {
   kCpu,
@@ -186,7 +187,7 @@ struct MlvpConfig {
   double collision_penalty = 1.0;
   double load_balance_gain = 0.5;
   bool fully_connected = true;
-  std::uint32_t seed = 0;
+  std::uint32_t seed = kDefaultSeed;
 };
 
 class MlvpPolicy final : public SchedulingPolicy {

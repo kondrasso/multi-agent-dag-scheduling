@@ -18,7 +18,7 @@ struct Options {
   mlvp::TypeAssignmentStrategy type_strategy = mlvp::TypeAssignmentStrategy::kRandom;
   std::size_t train_per_class = 3;
   std::size_t eval_per_class = 10;
-  std::uint32_t seed = 0;
+  std::uint32_t seed = mlvp::kDefaultSeed;
   bool overwrite = false;
 };
 

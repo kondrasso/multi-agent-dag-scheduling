@@ -21,7 +21,7 @@ struct Options {
   std::size_t generate_count = 0;
   mlvp::DaggenParams daggen;
   int workspace = 1;
-  std::uint32_t seed = 0;
+  std::uint32_t seed = mlvp::kDefaultSeed;
   std::string weights_file;
   std::string platform_file;
   mlvp::TypeAssignmentStrategy type_strategy = mlvp::TypeAssignmentStrategy::kRandom;

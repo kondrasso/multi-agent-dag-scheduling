@@ -50,7 +50,7 @@ struct Options {
   std::vector<int> workspaces = {1, 2, 3, 4};
   std::vector<std::string> policies = {"mlvp", "donf", "fifo", "minmin", "maxmin"};
   mlvp::TypeAssignmentStrategy type_strategy = mlvp::TypeAssignmentStrategy::kRandom;
-  std::uint32_t seed = 0;
+  std::uint32_t seed = mlvp::kDefaultSeed;
   std::string daggen_binary = "./daggen/daggen";
   mlvp::MlvpConfig mlvp_config;
 };

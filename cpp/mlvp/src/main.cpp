@@ -21,7 +21,7 @@ int main(int argc, char** argv) {
     int workspace = 1;
     std::string policy_name = "mlvp";
     std::string weights_file;
-    std::uint32_t seed = 0;
+    std::uint32_t seed = mlvp::kDefaultSeed;
     mlvp::MlvpConfig config;
 
     for (int i = 1; i < argc; ++i) {

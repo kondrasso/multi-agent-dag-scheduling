@@ -39,7 +39,7 @@ struct Options {
   std::string split = "train";
   std::string out_weights;
   std::string history_csv;
-  std::uint32_t seed = 0;
+  std::uint32_t seed = mlvp::kDefaultSeed;
   std::size_t sample_size = 0;
   SampleMode sample_mode = SampleMode::kStratified;
   std::size_t jobs = 1;

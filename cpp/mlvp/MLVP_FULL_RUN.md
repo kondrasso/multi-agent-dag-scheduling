@@ -43,7 +43,7 @@ through `cpp/mlvp/include/mlvp/core.hpp`.
 - `--objective best-baseline-ratio`
 - `--baselines donf,fifo,minmin,maxmin`
 - `--assign-types alpha`
-- `--seed 12345`
+- `--seed 42`
 
 `best-baseline-ratio` tunes MLVP against the strongest enabled baseline on each
 training instance. The seed is passed through platform generation, type

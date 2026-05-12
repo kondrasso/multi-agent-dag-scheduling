@@ -59,5 +59,5 @@ exec "${LONG_RUN_SCRIPT}" \
   --baselines donf,fifo,minmin,maxmin \
   --policies mlvp,donf,fifo,minmin,maxmin \
   --assign-types alpha \
-  --seed 12345 \
+  --seed 42 \
   "$@"

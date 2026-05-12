@@ -27,7 +27,7 @@ Options:
   --gamma X                    MLVP gamma. Default: 0.2
   --epsilon X                  MLVP epsilon. Default: 0.05
   --max-iterations N           MLVP max iterations. Default: 8
-  --seed N                     Base seed. Default: 0
+  --seed N                     Base seed. Default: 42
   --daggen-binary PATH         DAGGEN executable path.
   --refreeze                   Delete and regenerate existing workspace corpora.
   --skip-build                 Reuse existing binaries instead of running make.
@@ -63,7 +63,7 @@ CANDIDATE_CAP=8
 GAMMA=0.2
 EPSILON=0.05
 MAX_ITERATIONS=8
-SEED=0
+SEED=42
 DAGGEN_BINARY="${REPO_ROOT}/daggen/daggen"
 REFREEZE=0
 SKIP_BUILD=0

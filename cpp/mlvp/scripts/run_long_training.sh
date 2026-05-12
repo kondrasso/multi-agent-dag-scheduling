@@ -31,7 +31,7 @@ Options:
   --baselines csv              Default: donf
   --policies csv               Default: mlvp,donf,fifo,minmin,maxmin
   --assign-types STR           Default: alpha
-  --seed N                     Default: 12345
+  --seed N                     Default: 42
   --daggen-binary PATH         Override DAGGEN binary path
   --full-train                 Disable train sampling (sample-size=0)
   --refreeze                   Regenerate saved corpora
@@ -74,7 +74,7 @@ OBJECTIVE="best-baseline-ratio"
 BASELINES="donf"
 POLICIES="mlvp,donf,fifo,minmin,maxmin"
 ASSIGN_TYPES="alpha"
-SEED=12345
+SEED=42
 DAGGEN_BINARY=""
 REFREEZE=0
 SKIP_BUILD=0
